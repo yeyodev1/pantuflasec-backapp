@@ -5,6 +5,7 @@ import productRoutes from "./product.routes";
 import orderRoutes from "./order.routes";
 import uploadRoutes from "./upload.routes";
 import userRoutes from "./user.routes";
+import galleryRoutes from "./gallery.routes";
 
 function routerApi(app: Application) {
   const router = express.Router();
@@ -16,6 +17,7 @@ function routerApi(app: Application) {
   router.use("/orders", orderRoutes);
   router.use("/uploads", uploadRoutes);
   router.use("/users", userRoutes);
+  router.use("/gallery", galleryRoutes);
 }
 
 export default routerApi;
