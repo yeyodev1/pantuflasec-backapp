@@ -42,4 +42,9 @@ export const env = {
   CLOUDINARY_API_KEY: optional("CLOUDINARY_API_KEY", ""),
   CLOUDINARY_API_SECRET: optional("CLOUDINARY_API_SECRET", ""),
   CRON_SECRET: optional("CRON_SECRET", ""),
+  PAYPHONE_TOKEN: optional("PAYPHONE_TOKEN", ""),
+  PAYPHONE_STORE_ID: optional("PAYPHONE_STORE_ID", ""),
+  PAYPHONE_RESPONSE_URL: optional("PAYPHONE_RESPONSE_URL", ""),
+  /** IVA que se suma al pagar con tarjeta (los catálogos lo anuncian: 15%). */
+  TAX_RATE: Number(optional("TAX_RATE", "0.15")),
 } as const;
