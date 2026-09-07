@@ -6,9 +6,11 @@ import { uploadBuffer, isCloudinaryConfigured } from "../services/cloudinary.ser
 export async function image(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.file) throw new CustomError("Adjunta una imagen en el campo 'file'", 400);
-    if (!req.file.mimetype.startsWith("image/")) {
-      throw new CustomError("Solo se aceptan imágenes", 400);
-    }
+    // Algunos clientes mandan octet-stream para .webp/.heic: se valida también por extensión.
+    const isImage =
+      req.file.mimetype.startsWith("image/") ||
+      /\.(png|jpe?g|webp|gif|avif|heic)$/i.test(req.file.originalname ?? "");
+    if (!isImage) throw new CustomError("Solo se aceptan imágenes", 400);
     const result = await uploadBuffer(req.file.buffer, "pantuflasec/productos");
     res.status(201).json(result);
   } catch (error) {
