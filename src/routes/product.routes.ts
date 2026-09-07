@@ -16,6 +16,7 @@ router.post("/", authMiddleware, adminMiddleware, productController.create);
 router.put("/:id", authMiddleware, adminMiddleware, productController.update);
 router.delete("/:id", authMiddleware, adminMiddleware, productController.remove);
 
+router.get("/:slug/related", productController.related);
 router.get("/:slug", productController.getBySlug);
 
 export default router;
