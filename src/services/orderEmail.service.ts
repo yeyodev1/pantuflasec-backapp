@@ -23,10 +23,9 @@ function itemsTable(order: IOrder): string {
 /** Al cliente: confirmación de pago. Al admin: aviso para preparar. Nunca lanza. */
 export async function sendOrderPaid(order: IOrder): Promise<void> {
   const link = `${env.FRONTEND_URL}/pedido/${order.clientTransactionId}`;
-  const address =
-    order.shipping.method === "pickup"
-      ? "Retiro en tienda: La Garzota, av. Agustín Freire frente al Garzocentro, Guayaquil."
-      : `${order.shipping.address}, ${order.shipping.city}${order.shipping.reference ? ` (${order.shipping.reference})` : ""}`;
+  const address = order.shipping.method.startsWith("pickup")
+    ? `${order.shipping.label}: ${order.shipping.address}, ${order.shipping.city}.`
+    : `${order.shipping.address}, ${order.shipping.city}${order.shipping.reference ? ` (${order.shipping.reference})` : ""}`;
 
   await sendEmail(
     order.customer.email,
