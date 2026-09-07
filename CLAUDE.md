@@ -9,6 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Start prod:** `pnpm start`
 - **Format:** `pnpm format` (Prettier)
 - **Seed admin:** `pnpm seed:admin`
+- **Importar catálogo:** `pnpm seed:catalog <catalog.json> [--reset]` (upsert por slug; conserva stock editado)
 - **No hay linter ni tests.** `pnpm build` es la única verificación.
 
 ## Tech Stack
@@ -17,6 +18,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - MongoDB via Mongoose (`DB_URI`)
 - JWT Bearer (`JWT_SECRET`, 30 días)
 - Resend para correo (opcional: sin key no envía)
+- Cloudinary para fotos subidas desde el admin (opcional: sin keys, `POST /uploads/image` responde 503)
+- PayPhone (Cajita de Pagos): `PAYPHONE_TOKEN` + `PAYPHONE_STORE_ID`; el server solo confirma
 - Vercel: `api/index.ts` es la función; `vercel.json` reescribe todo a `/api`
 
 ## Architecture
@@ -31,6 +34,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Controllers** (`src/controllers/`) — parsean req, llaman al service, responden. Sin lógica de negocio.
 - **Services** (`src/services/`) — lógica de negocio y APIs externas. Lanzan `CustomError`.
 - **Models** (`src/models/`) — schemas Mongoose
+
+### Módulos de la tienda
+
+- **products** — `Product` con `variants[]` (talla/color, stock y precio propio o `null` = base)
+  e `images[]`. Público: `GET /products` (q, category, collection, featured, sort, page),
+  `/products/facets`, `/products/:slug`. Admin: `/products/admin/all`, `/products/admin/:slug`,
+  POST/PUT/DELETE. Búsqueda con índice `$text`. `reserveStock()` descuenta stock de forma atómica.
+- **orders** — `POST /orders` valida precios y stock contra la base (nunca confía en el carrito),
+  calcula `subtotal + envío + IVA (TAX_RATE)` y devuelve `{ order, payphone }` con los montos
+  en centavos para `PPaymentButtonBox`. PayPhone redirige al front con `id` y
+  `clientTransactionId`; `POST /orders/confirm` llama a `paymentbox…/api/confirm`, marca pagado,
+  descuenta stock y manda correos. Es idempotente. Hay 5 min para confirmar o PayPhone reversa.
+  Público: `/orders/config`, `/orders/track/:token` (token = clientTransactionId, un UUID).
+  Admin: `/orders/admin/all`, `/orders/admin/:id`, `PUT /orders/admin/:id/status`.
+- **config/shop.ts** — métodos de envío y estados de pedido. Cambiar precios de envío ahí.
+- **users** — admin: `GET/POST /users`, `PUT /users/:id` (nombre, teléfono, rol, activo,
+  contraseña), `DELETE /users/:id`. Un admin no puede quitarse el rol ni desactivarse a sí mismo.
+  `pnpm user:create <correo> <clave> [admin|customer] [nombre]` crea o actualiza desde la terminal.
+- **uploads** — `POST /uploads/image` (multipart `file`) sube a Cloudinary; `GET /uploads/status`.
 
 ### Key Patterns
 
