@@ -30,6 +30,15 @@ export async function getBySlug(req: Request, res: Response, next: NextFunction)
   }
 }
 
+/** GET /api/products/:slug/related — { complement, similar } */
+export async function related(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.status(200).json(await productService.related(String(req.params.slug)));
+  } catch (error) {
+    next(error);
+  }
+}
+
 /** GET /api/products/admin/all — igual que list pero incluye inactivos. */
 export async function listAll(req: Request, res: Response, next: NextFunction) {
   try {
