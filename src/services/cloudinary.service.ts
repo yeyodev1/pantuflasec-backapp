@@ -59,3 +59,42 @@ export async function deleteImage(publicId: string): Promise<void> {
   ensureConfig();
   await cloudinary.uploader.destroy(publicId);
 }
+
+export interface MediaItem {
+  publicId: string;
+  url: string;
+  width: number;
+  height: number;
+  bytes: number;
+  format: string;
+  createdAt: string;
+}
+
+/** Lista las imágenes de una carpeta, más nuevas primero. `cursor` pagina. */
+export async function listImages(
+  folder = DEFAULT_FOLDER,
+  cursor?: string,
+  max = 40,
+): Promise<{ items: MediaItem[]; nextCursor: string | null }> {
+  ensureConfig();
+  const result = await cloudinary.api.resources({
+    type: "upload",
+    resource_type: "image",
+    prefix: `${folder}/`,
+    max_results: max,
+    next_cursor: cursor || undefined,
+    direction: "desc",
+  });
+  return {
+    items: (result.resources as any[]).map((r) => ({
+      publicId: r.public_id,
+      url: r.secure_url,
+      width: r.width,
+      height: r.height,
+      bytes: r.bytes,
+      format: r.format,
+      createdAt: r.created_at,
+    })),
+    nextCursor: result.next_cursor ?? null,
+  };
+}
