@@ -76,6 +76,73 @@ export async function getBySlug(slug: string, includeInactive = false): Promise<
   return product;
 }
 
+/**
+ * Relacionados para vender más desde la página de producto:
+ * - complement: misma colección pero otra categoría (cross-selling: la taza del
+ *   mismo personaje que el peluche que estás viendo).
+ * - similar: misma categoría, primero la misma colección y luego el resto, con
+ *   los más caros primero (upselling: la versión más grande).
+ */
+export async function related(slug: string) {
+  requireDb();
+  const product = await Product.findOne({ slug, isActive: true }).lean();
+  if (!product) throw new CustomError("Producto no encontrado", 404);
+  const not = { _id: { $ne: product._id }, isActive: true };
+  const byCollection = product.collection
+    ? { collection: new RegExp(`^${escapeRegex(product.collection)}$`, "i") }
+    : null;
+
+  const [complementRaw, sameLine, sameCategory] = await Promise.all([
+    byCollection
+      ? Product.find({ ...not, ...byCollection, category: { $ne: product.category } })
+          .sort({ featured: -1, price: -1 })
+          .limit(40)
+          .lean()
+      : [],
+    byCollection
+      ? Product.find({ ...not, ...byCollection, category: product.category })
+          .sort({ price: -1 })
+          .limit(8)
+          .lean()
+      : [],
+    Product.find({ ...not, category: product.category, ...(byCollection ? { collection: { $not: byCollection.collection } } : {}) })
+      .sort({ featured: -1, createdAt: -1 })
+      .limit(8)
+      .lean(),
+  ]);
+  // Cross-selling variado: se reparte por categoría (una taza, unas pantuflas,
+  // una pijama...) en vez de ocho llaveros seguidos.
+  const buckets = new Map<string, IProduct[]>();
+  for (const p of complementRaw as IProduct[]) {
+    const list = buckets.get(p.category) ?? [];
+    list.push(p);
+    buckets.set(p.category, list);
+  }
+  const complement: IProduct[] = [];
+  for (let round = 0; complement.length < 8; round++) {
+    let added = false;
+    for (const list of buckets.values()) {
+      if (list[round] && complement.length < 8) {
+        complement.push(list[round]);
+        added = true;
+      }
+    }
+    if (!added) break;
+  }
+  const seen = new Set<string>();
+  const dedupe = (list: IProduct[]) =>
+    list.filter((p) => {
+      const id = String((p as any)._id);
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  return {
+    complement: dedupe(complement),
+    similar: dedupe([...(sameLine as IProduct[]), ...(sameCategory as IProduct[])]).slice(0, 8),
+  };
+}
+
 /** Categorías y colecciones con cantidad de productos activos, para los filtros del front. */
 export async function facets() {
   requireDb();
