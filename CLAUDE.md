@@ -53,6 +53,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **users** — admin: `GET/POST /users`, `PUT /users/:id` (nombre, teléfono, rol, activo,
   contraseña), `DELETE /users/:id`. Un admin no puede quitarse el rol ni desactivarse a sí mismo.
   `pnpm user:create <correo> <clave> [admin|customer] [nombre]` crea o actualiza desde la terminal.
+- **gallery** — fotos de la portada que el admin ordena: `GET /gallery` (activas, en orden),
+  admin `GET /gallery/admin/all`, `POST /gallery`, `PUT /gallery/reorder` ({ ids }), `PUT/DELETE /gallery/:id`.
 - **uploads** — biblioteca en Cloudinary bajo `pantuflasec/<carpeta>`: `GET /uploads` (paginado por
   `cursor`), `POST /uploads/image` (multipart `file` + `folder`), `DELETE /uploads/:publicId`
   (rechaza si un producto la usa), `GET /uploads/status`.
