@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { env } from "../config/env";
 import { isConnected } from "../config/mongo";
-import { ORDER_STATUSES, OrderStatus, SHIPPING_METHODS, ShippingMethod } from "../config/shop";
+import { ORDER_STATUSES, OrderStatus, PICKUP_POINTS, SHIPPING_METHODS, ShippingMethod, isPickup } from "../config/shop";
 import { CustomError } from "../errors/customError.error";
 import { IOrder, IOrderItem, Order, nextOrderNumber } from "../models/order.model";
 import { Product } from "../models/product.model";
@@ -184,14 +184,15 @@ function validateShipping(s: NonNullable<CheckoutInput["shipping"]>) {
   if (!method) throw new CustomError("Elige cómo quieres recibir tu pedido", 400);
   const address = String(s.address ?? "").trim();
   const city = String(s.city ?? "").trim();
-  if (method.key !== "pickup" && (address.length < 5 || !city)) {
+  const pickup = isPickup(method.key) ? PICKUP_POINTS[method.key] : null;
+  if (!pickup && (address.length < 5 || !city)) {
     throw new CustomError("Escribe la dirección y la ciudad de entrega", 400);
   }
   return {
     method: method.key as ShippingMethod,
     label: method.label,
-    address: method.key === "pickup" ? "" : address,
-    city: method.key === "pickup" ? "Guayaquil" : city,
+    address: pickup ? pickup.address : address,
+    city: pickup ? pickup.city : city,
     reference: String(s.reference ?? "").trim(),
     notes: String(s.notes ?? "").trim().slice(0, 500),
   };
