@@ -20,7 +20,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Resend para correo (opcional: sin key no envía)
 - Cloudinary para fotos subidas desde el admin (opcional: sin keys, `POST /uploads/image` responde 503)
 - PayPhone (Cajita de Pagos): `PAYPHONE_TOKEN` + `PAYPHONE_STORE_ID`; el server solo confirma
-- Vercel: `api/index.ts` es la función; `vercel.json` reescribe todo a `/api`
+- Vercel: `api/index.ts` es la función; `vercel.json` reescribe todo a `/api`. Producción en
+  `https://dev-project-back.bakano.ec` (proyecto `pantuflasec-backapp`, team proyectos-de-diego).
 
 ## Architecture
 
@@ -52,7 +53,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **users** — admin: `GET/POST /users`, `PUT /users/:id` (nombre, teléfono, rol, activo,
   contraseña), `DELETE /users/:id`. Un admin no puede quitarse el rol ni desactivarse a sí mismo.
   `pnpm user:create <correo> <clave> [admin|customer] [nombre]` crea o actualiza desde la terminal.
-- **uploads** — `POST /uploads/image` (multipart `file`) sube a Cloudinary; `GET /uploads/status`.
+- **uploads** — biblioteca en Cloudinary bajo `pantuflasec/<carpeta>`: `GET /uploads` (paginado por
+  `cursor`), `POST /uploads/image` (multipart `file` + `folder`), `DELETE /uploads/:publicId`
+  (rechaza si un producto la usa), `GET /uploads/status`.
+- **Fotos: nunca locales.** Toda imagen de producto es una URL de Cloudinary. Para pasar las del
+  catálogo importado: `pnpm images:migrate <carpeta con los .webp>` (idempotente).
 
 ### Key Patterns
 
