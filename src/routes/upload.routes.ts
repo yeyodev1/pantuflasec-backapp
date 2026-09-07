@@ -8,6 +8,8 @@ const router = Router();
 
 router.use(authMiddleware, adminMiddleware);
 router.get("/status", uploadController.status);
+router.get("/", uploadController.list);
 router.post("/image", uploadMiddleware.single("file"), uploadController.image);
+router.delete("/:publicId", uploadController.remove);
 
 export default router;
