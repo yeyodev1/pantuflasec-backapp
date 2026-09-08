@@ -54,6 +54,8 @@ export interface IProduct {
   featured: boolean;
   /** Sección "Nuevo" de la tienda: lo marca el admin cuando llega mercadería. */
   newArrival: boolean;
+  /** Sale en el inicio, en una sección con el nombre de su colección (p. ej. "Flores amarillas"). */
+  showOnHome: boolean;
   sortOrder: number;
   createdAt?: Date;
   updatedAt?: Date;
@@ -94,6 +96,7 @@ const productSchema = new Schema<IProduct>(
     isActive: { type: Boolean, default: true, index: true },
     featured: { type: Boolean, default: false },
     newArrival: { type: Boolean, default: false, index: true },
+    showOnHome: { type: Boolean, default: false, index: true },
     sortOrder: { type: Number, default: 0 },
   },
   // `collection` es nombre reservado en Mongoose; se comprobó que get/set/save
