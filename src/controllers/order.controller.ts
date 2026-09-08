@@ -4,12 +4,22 @@ import * as orderService from "../services/order.service";
 import * as orderAdmin from "../services/orderAdmin.service";
 import * as orderPayment from "../services/orderPayment.service";
 import { addMessage } from "../services/orderMessage.service";
+import * as mapsService from "../services/maps.service";
 import { frontendUrlFor } from "../utils/origin";
 
 /** GET /api/orders/config — envíos, IVA, cajita de PayPhone y métodos que aprueba el equipo. */
 export async function config(_req: Request, res: Response, next: NextFunction) {
   try {
     res.status(200).json(await orderService.config());
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** GET /api/orders/quote?location= — cotiza la entrega en moto (link de Maps, "lat,lng" o dirección). */
+export async function quote(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.status(200).json(await mapsService.quote(String(req.query.location ?? "")));
   } catch (error) {
     next(error);
   }
