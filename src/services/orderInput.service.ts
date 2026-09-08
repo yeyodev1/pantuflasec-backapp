@@ -10,16 +10,32 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export interface CheckoutInput {
   customer?: { name?: string; email?: string; phone?: string; documentId?: string };
-  shipping?: { method?: string; address?: string; city?: string; reference?: string; notes?: string };
-  billing?: { wanted?: boolean; sameAsCustomer?: boolean; documentId?: string; name?: string; email?: string; phone?: string };
+  shipping?: {
+    method?: string;
+    address?: string;
+    city?: string;
+    reference?: string;
+    notes?: string;
+  };
+  billing?: {
+    wanted?: boolean;
+    sameAsCustomer?: boolean;
+    documentId?: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
   items?: Array<{ productId?: string; variantId?: string | null; qty?: number }>;
+  payment?: { method?: string };
 }
 
 /** Validación y armado del pedido: precio y stock salen de la base, nunca del carrito. */
 
 export function validateCustomer(c: NonNullable<CheckoutInput["customer"]>) {
   const name = String(c.name ?? "").trim();
-  const email = String(c.email ?? "").trim().toLowerCase();
+  const email = String(c.email ?? "")
+    .trim()
+    .toLowerCase();
   const phone = String(c.phone ?? "").replace(/\s+/g, "");
   if (name.length < 3) throw new CustomError("Escribe tu nombre completo", 400);
   if (!EMAIL.test(email)) throw new CustomError("Escribe un correo válido", 400);
@@ -33,17 +49,28 @@ export function validateCustomer(c: NonNullable<CheckoutInput["customer"]>) {
 }
 
 /** Factura: con los mismos datos del cliente o con RUC/cédula y nombre propios. */
-export function validateBilling(b: NonNullable<CheckoutInput["billing"]>, customer: ReturnType<typeof validateCustomer>) {
+export function validateBilling(
+  b: NonNullable<CheckoutInput["billing"]>,
+  customer: ReturnType<typeof validateCustomer>,
+) {
   if (!b.wanted) return { wanted: false, documentId: "", name: "", email: "", phone: "" };
   const same = b.sameAsCustomer !== false;
   const documentId = String((same ? customer.documentId : b.documentId) ?? "").replace(/\D/g, "");
   const name = same ? customer.name : String(b.name ?? "").trim();
-  const email = same ? customer.email : String(b.email ?? "").trim().toLowerCase();
+  const email = same
+    ? customer.email
+    : String(b.email ?? "")
+        .trim()
+        .toLowerCase();
   const phone = same ? customer.phone : String(b.phone ?? "").replace(/\s+/g, "");
   if (!/^\d{10}$|^\d{13}$/.test(documentId)) {
-    throw new CustomError("Para la factura escribe una cédula (10 dígitos) o RUC (13 dígitos) válido", 400);
+    throw new CustomError(
+      "Para la factura escribe una cédula (10 dígitos) o RUC (13 dígitos) válido",
+      400,
+    );
   }
-  if (name.length < 3) throw new CustomError("Escribe el nombre o razón social para la factura", 400);
+  if (name.length < 3)
+    throw new CustomError("Escribe el nombre o razón social para la factura", 400);
   if (!EMAIL.test(email)) throw new CustomError("Escribe un correo válido para la factura", 400);
   return { wanted: true, documentId, name, email, phone };
 }
@@ -63,7 +90,9 @@ export function validateShipping(s: NonNullable<CheckoutInput["shipping"]>) {
     address: pickup ? pickup.address : address,
     city: pickup ? pickup.city : city,
     reference: String(s.reference ?? "").trim(),
-    notes: String(s.notes ?? "").trim().slice(0, 500),
+    notes: String(s.notes ?? "")
+      .trim()
+      .slice(0, 500),
   };
 }
 
@@ -78,7 +107,8 @@ export async function buildItems(raw: NonNullable<CheckoutInput["items"]>): Prom
     const product = byId.get(String(line.productId));
     if (!product) throw new CustomError("Un producto del carrito ya no está disponible", 409);
     const qty = Number(line.qty);
-    if (!Number.isInteger(qty) || qty < 1) throw new CustomError(`Cantidad inválida en ${product.name}`, 400);
+    if (!Number.isInteger(qty) || qty < 1)
+      throw new CustomError(`Cantidad inválida en ${product.name}`, 400);
 
     const variant = line.variantId
       ? product.variants.find((v) => String(v._id) === String(line.variantId))
@@ -87,7 +117,10 @@ export async function buildItems(raw: NonNullable<CheckoutInput["items"]>): Prom
       throw new CustomError(`Elige una opción para ${product.name}`, 400);
     }
     if (variant && variant.stock < qty) {
-      throw new CustomError(`Solo quedan ${variant.stock} de ${product.name} (${variant.label})`, 409);
+      throw new CustomError(
+        `Solo quedan ${variant.stock} de ${product.name} (${variant.label})`,
+        409,
+      );
     }
     const unitPrice = variant?.price ?? product.price;
     return {
