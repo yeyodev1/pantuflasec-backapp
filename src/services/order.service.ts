@@ -7,7 +7,7 @@ import { IOrder, IOrderItem, Order, nextOrderNumber } from "../models/order.mode
 import { Product } from "../models/product.model";
 import * as productService from "./product.service";
 import * as payphone from "./payphone.service";
-import { sendOrderPaid } from "./orderEmail.service";
+import { sendOrderCreated, sendOrderPaid, sendOrderStatus } from "./orderEmail.service";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PAGE_SIZE = 30;
@@ -78,6 +78,8 @@ export async function create(input: CheckoutInput, userId: string | null) {
     total,
   });
 
+  // No se espera: el correo al admin no debe retrasar la respuesta al cliente.
+  void sendOrderCreated(order.toObject());
   return { order: order.toObject(), payphone: boxParams(order) };
 }
 
@@ -157,9 +159,23 @@ export async function setStatus(id: string, status: string): Promise<IOrder> {
   if (!ORDER_STATUSES.includes(status as OrderStatus)) {
     throw new CustomError(`Estado inválido. Usa uno de: ${ORDER_STATUSES.join(", ")}`, 400);
   }
+  const previous = await Order.findById(id).select("status").lean();
+  if (!previous) throw new CustomError("Pedido no encontrado", 404);
   const order = await Order.findByIdAndUpdate(id, { status }, { new: true }).lean();
   if (!order) throw new CustomError("Pedido no encontrado", 404);
+  if (previous.status !== order.status) void sendOrderStatus(order);
   return order;
+}
+
+/** Resumen para el header del admin: cuántos pedidos pagados esperan atención. */
+export async function summary() {
+  requireDb();
+  const [paid, preparing, today] = await Promise.all([
+    Order.countDocuments({ status: "paid" }),
+    Order.countDocuments({ status: "preparing" }),
+    Order.countDocuments({ "payment.status": "paid", createdAt: { $gte: new Date(Date.now() - 86_400_000) } }),
+  ]);
+  return { pending: paid + preparing, paid, preparing, today };
 }
 
 // --- Validación ---
