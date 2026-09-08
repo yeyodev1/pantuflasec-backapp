@@ -21,7 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Cloudinary para fotos subidas desde el admin (opcional: sin keys, `POST /uploads/image` responde 503)
 - PayPhone (Cajita de Pagos): `PAYPHONE_TOKEN` + `PAYPHONE_STORE_ID`; el server solo confirma
 - Vercel: `api/index.ts` es la función; `vercel.json` reescribe todo a `/api`. Producción en
-  `https://dev-project-back.bakano.ec` (proyecto `pantuflasec-backapp`, team proyectos-de-diego).
+  `https://api.pantuflas.ec` (alias `https://dev-project-back.bakano.ec`) (proyecto `pantuflasec-backapp`, team proyectos-de-diego).
 
 ## Architecture
 
