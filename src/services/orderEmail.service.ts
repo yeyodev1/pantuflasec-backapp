@@ -1,11 +1,21 @@
 import { env } from "../config/env";
+import { PAYMENT_METHOD_LABELS } from "../config/shop";
 import { IOrder } from "../models/order.model";
 import { layout, sendEmail } from "./email.service";
 
-const money = (n: number) => `$${n.toFixed(2)}`;
-const base = (order: IOrder) => (order.siteUrl || env.FRONTEND_URL).replace(/\/$/, "");
+export const money = (n: number) => `$${n.toFixed(2)}`;
+export const base = (order: IOrder) => (order.siteUrl || env.FRONTEND_URL).replace(/\/$/, "");
 
-function itemsTable(order: IOrder): string {
+/** Cómo se pagó (o se va a pagar), para los correos del admin. */
+function paymentLine(order: IOrder): string {
+  const label = PAYMENT_METHOD_LABELS[order.payment.method] ?? order.payment.method;
+  if (order.payment.method === "payphone" && order.payment.authorizationCode) {
+    return `${label} · ${order.payment.cardBrand} · aut. ${order.payment.authorizationCode}`;
+  }
+  return label;
+}
+
+export function itemsTable(order: IOrder): string {
   const rows = order.items
     .map(
       (i) => `<tr>
@@ -16,7 +26,7 @@ function itemsTable(order: IOrder): string {
   return `<table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eee;border-bottom:1px solid #eee;margin:16px 0">
     ${rows}
     <tr><td style="padding:6px 0;color:#71717a">Envío · ${order.shipping.label}</td><td align="right">${money(order.shippingCost)}</td></tr>
-    <tr><td style="padding:6px 0;color:#71717a">IVA</td><td align="right">${money(order.tax)}</td></tr>
+    <tr><td style="padding:6px 0;color:#71717a">${order.taxIncluded ? "IVA incluido en el precio" : "IVA"}</td><td align="right" style="color:#71717a">${money(order.tax)}</td></tr>
     <tr><td style="padding:10px 0;font-weight:bold">Total</td><td align="right" style="font-weight:bold">${money(order.total)}</td></tr>
   </table>`;
 }
@@ -54,7 +64,7 @@ export async function sendOrderPaid(order: IOrder): Promise<boolean> {
        ${order.shipping.notes ? `<p><strong>Notas:</strong> ${order.shipping.notes}</p>` : ""}
        ${order.billing?.wanted ? `<p><strong>Factura:</strong> ${order.billing.name} · ${order.billing.documentId} · ${order.billing.email}${order.billing.phone ? ` · ${order.billing.phone}` : ""}</p>` : "<p>Sin factura.</p>"}
        ${order.stockIssue ? `<p style="color:#c2554f"><strong>Atención:</strong> no se pudo descontar stock de algún ítem. Revisar inventario.</p>` : ""}
-       <p>PayPhone: ${order.payment.authorizationCode} · ${order.payment.cardBrand}</p>`,
+       <p><strong>Pago:</strong> ${paymentLine(order)}</p>`,
     ),
   );
   return sent;
@@ -112,7 +122,8 @@ export async function sendOrderCreated(order: IOrder): Promise<boolean> {
       `Pedido ${order.number} creado`,
       `<p><strong>${order.customer.name}</strong> · ${order.customer.email} · ${order.customer.phone}</p>
        ${itemsTable(order)}
-       <p>Todavía no está pagado. Cuando PayPhone confirme el cobro te llega otro correo.</p>`,
+       <p><strong>Pago:</strong> ${paymentLine(order)}.</p>
+       <p>${order.payment.method === "payphone" ? "Cuando PayPhone confirme el cobro te llega otro correo." : order.payment.method === "transfer" ? "Cuando el cliente suba el comprobante te llega otro correo para aprobarlo desde el panel." : "El cliente paga en efectivo al retirar: registra el pago desde el panel."}</p>`,
     ),
   );
 }
@@ -121,7 +132,11 @@ export async function sendOrderCreated(order: IOrder): Promise<boolean> {
  * "Mis pedidos" desde otro dispositivo: se manda al correo la lista con sus
  * enlaces de seguimiento. Así nadie ve pedidos ajenos con solo saber un correo.
  */
-export async function sendOrderLinks(email: string, orders: IOrder[], siteUrl: string): Promise<void> {
+export async function sendOrderLinks(
+  email: string,
+  orders: IOrder[],
+  siteUrl: string,
+): Promise<void> {
   const rows = orders
     .map(
       (o) => `<tr>
