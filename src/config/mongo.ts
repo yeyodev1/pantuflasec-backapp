@@ -19,10 +19,18 @@ export function isConnected(): boolean {
   return mongoose.connection.readyState === 1;
 }
 
+// Si Atlas o Vercel cierran la conexión en reposo, la promesa vieja (ya
+// resuelta) no sirve: se descarta para que el próximo dbConnect reconecte de
+// verdad en vez de devolver true con la conexión caída.
+mongoose.connection.on("disconnected", () => {
+  promesa = null;
+});
+
 export async function dbConnect(): Promise<boolean> {
   if (isConnected()) return true;
 
-  if (!promesa) {
+  // 2 = conectando: se espera esa misma promesa. Cualquier otro estado reconecta.
+  if (!promesa || mongoose.connection.readyState !== 2) {
     promesa = mongoose.connect(env.DB_URI, {
       // Fallar rápido y reintentar es mejor que dejar la petición colgada.
       serverSelectionTimeoutMS: 6000,
