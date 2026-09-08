@@ -57,6 +57,8 @@ export interface IProduct {
   /** Sale en el inicio, en una sección con el nombre de su colección (p. ej. "Flores amarillas"). */
   showOnHome: boolean;
   sortOrder: number;
+  /** Cuándo se le sumó la comisión de PayPhone al precio (script prices:adjust). Evita aplicarla dos veces. */
+  feeIncludedAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -97,6 +99,7 @@ const productSchema = new Schema<IProduct>(
     featured: { type: Boolean, default: false },
     newArrival: { type: Boolean, default: false, index: true },
     showOnHome: { type: Boolean, default: false, index: true },
+    feeIncludedAt: { type: Date, default: null },
     sortOrder: { type: Number, default: 0 },
   },
   // `collection` es nombre reservado en Mongoose; se comprobó que get/set/save
