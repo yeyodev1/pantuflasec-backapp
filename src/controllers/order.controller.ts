@@ -32,6 +32,16 @@ export async function confirm(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+/** POST /api/orders/lookup — body: { email }. Siempre 200. */
+export async function lookup(req: Request, res: Response, next: NextFunction) {
+  try {
+    await orderService.lookupByEmail(String(req.body?.email ?? ""));
+    res.status(200).json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+}
+
 /** GET /api/orders/track/:token — el token es el clientTransactionId. */
 export async function track(req: Request, res: Response, next: NextFunction) {
   try {
