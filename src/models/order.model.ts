@@ -21,6 +21,8 @@ export interface IOrder {
   siteUrl: string;
   userId: string | null;
   customer: { name: string; email: string; phone: string; documentId: string };
+  /** Datos de facturación si el cliente la pidió. */
+  billing: { wanted: boolean; documentId: string; name: string; email: string; phone: string };
   shipping: {
     method: string;
     label: string;
@@ -75,6 +77,13 @@ const orderSchema = new Schema<IOrder>(
       email: { type: String, required: true, lowercase: true, index: true },
       phone: { type: String, default: "" },
       documentId: { type: String, default: "" },
+    },
+    billing: {
+      wanted: { type: Boolean, default: false },
+      documentId: { type: String, default: "" },
+      name: { type: String, default: "" },
+      email: { type: String, default: "" },
+      phone: { type: String, default: "" },
     },
     shipping: {
       method: { type: String, required: true },
