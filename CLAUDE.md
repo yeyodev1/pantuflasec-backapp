@@ -75,7 +75,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   después: `adminMiddleware` (solo admin: catálogo, galería, archivos, usuarios) y `staffMiddleware`
   (admin o staff: pedidos). Roles: `customer`, `staff` (vendedor), `admin`.
 - **Respuestas:** cuerpo desnudo (`res.json(item)`), paginación `{ items, total, page, pages }`, login `{ token, user }`.
-- **Mongo serverless:** `dbConnect()` cachea la promesa; nunca `process.exit` en Vercel.
+- **Mongo serverless:** `dbConnect()` cachea la promesa mientras conecta y la descarta al
+  desconectarse (si no, tras un reposo devolvía "conectado" con la conexión caída y todo
+  respondía 503). `api/index.ts` reintenta la conexión tres veces en arranques fríos. Nunca
+  `process.exit` en Vercel.
 
 ## Convenciones
 
