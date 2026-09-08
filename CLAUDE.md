@@ -78,9 +78,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   Admin (`orderAdmin.service.ts`): `/orders/admin/all`, `/orders/admin/:id`, `PUT /orders/admin/:id/status`.
   Correos de transferencia, efectivo, comprobante y mensajes en `paymentEmail.service.ts`.
 - **config/shop.ts** — métodos de pago y estados; los métodos de envío ahí son solo el arranque.
+- **maps** (`maps.service.ts` + `maps/links.ts`, `maps/routing.ts`, portado de Teque Cruncheese) —
+  entrega en moto por distancia: `GET /orders/quote?location=` recibe "lat,lng" del mapa, un link
+  de Google Maps o una dirección y devuelve km por carretera desde La Garzota (`STORE_LAT/LNG`) y el
+  precio del tarifario `DELIVERY_TARIFF` (`config/shop.ts`, Let's Go Delivery + $0,50; hasta 22 km).
+  Rutea con Google Routes si hay `GOOGLE_MAPS_API_KEY` (padding `GOOGLE_KM_FACTOR`) y si no con
+  Valhalla y OSRM, gratis. El método de envío `kind: distance` usa esa cotización en
+  `validateShipping` (nunca el precio del navegador) y guarda `shipping.location/coords/km`.
 - **shipping** (`shipping.service.ts`) — métodos de entrega que edita el admin (`Setting` clave
   `shipping`): retiros (`kind: pickup`, con dirección y ciudad, clave `pickup-…`) y envíos con
-  precio y descripción (clave `envio-…`). `GET/PUT /settings/shipping` admin; el checkout lee los
+  precio y descripción (clave `envio-…`) y moto por distancia (`kind: distance`, clave `moto-…`). `GET/PUT /settings/shipping` admin; el checkout lee los
   activos por `/orders/config` y `validateShipping` valida contra ellos. Las claves se conservan
   al editar porque los pedidos viejos las referencian.
 - **settings** — ajustes que edita el admin (`Setting`, un doc por clave, validados en
