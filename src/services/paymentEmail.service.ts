@@ -26,6 +26,8 @@ export function accountsTable(accounts: PaymentSettings["transfer"]["accounts"])
 }
 
 /** Al cliente al crear un pedido por transferencia: cuentas, monto y dónde subir el comprobante. */
+const WA = `<a href="https://wa.me/593982401562" style="color:#2f7ce6">WhatsApp +593 98 240 1562</a>`;
+
 export async function sendTransferInstructions(
   order: IOrder,
   transfer: PaymentSettings["transfer"],
@@ -36,8 +38,8 @@ export async function sendTransferInstructions(
     layout(
       base(order),
       `¡Gracias, ${first(order)}!`,
-      `<p>Reservamos tu pedido <strong>${order.number}</strong>. Para confirmarlo, transfiere <strong>${money(order.total)}</strong> a una de estas cuentas:</p>
-       ${accountsTable(transfer.accounts)}
+      `<p>Reservamos tu pedido <strong>${order.number}</strong>. Para confirmarlo, transfiere <strong>${money(order.total)}</strong>${transfer.accounts.length ? " a una de estas cuentas:" : "."}</p>
+       ${transfer.accounts.length ? accountsTable(transfer.accounts) : `<p>Escríbenos por ${WA} y te pasamos los datos de la cuenta.</p>`}
        <p style="color:#4a5472">${transfer.instructions}</p>
        <p>Luego sube la captura del comprobante en <a href="${trackLink(order)}">${trackLink(order)}</a>. Apenas la revisemos te avisamos por aquí.</p>
        ${itemsTable(order)}`,
