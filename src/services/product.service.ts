@@ -11,6 +11,7 @@ export interface ListQuery {
   category?: string;
   collection?: string;
   featured?: string;
+  newArrival?: string;
   sort?: string;
   page?: string;
   limit?: string;
@@ -47,6 +48,7 @@ export async function list(query: ListQuery): Promise<Paginated<IProduct>> {
   if (query.category) filter.category = query.category;
   if (query.collection) filter.collection = new RegExp(`^${escapeRegex(query.collection)}$`, "i");
   if (query.featured === "true") filter.featured = true;
+  if (query.newArrival === "true") filter.newArrival = true;
 
   const q = query.q?.trim();
   let sort = SORTS[query.sort ?? ""] ?? SORTS.featured;
@@ -106,7 +108,11 @@ export async function related(slug: string) {
           .limit(8)
           .lean()
       : [],
-    Product.find({ ...not, category: product.category, ...(byCollection ? { collection: { $not: byCollection.collection } } : {}) })
+    Product.find({
+      ...not,
+      category: product.category,
+      ...(byCollection ? { collection: { $not: byCollection.collection } } : {}),
+    })
       .sort({ featured: -1, createdAt: -1 })
       .limit(8)
       .lean(),
@@ -249,7 +255,8 @@ function validate(input: ProductInput, creating: boolean): Record<string, unknow
     data.price = round2(price);
   }
   if (input.compareAtPrice !== undefined) {
-    data.compareAtPrice = input.compareAtPrice === null ? null : round2(Number(input.compareAtPrice));
+    data.compareAtPrice =
+      input.compareAtPrice === null ? null : round2(Number(input.compareAtPrice));
   }
   if (input.variants !== undefined) data.variants = validateVariants(input.variants);
   if (input.images !== undefined) {
@@ -268,7 +275,7 @@ function validate(input: ProductInput, creating: boolean): Record<string, unknow
   for (const key of ["description", "collection"] as const) {
     if (input[key] !== undefined) data[key] = String(input[key] ?? "").trim();
   }
-  for (const key of ["isActive", "featured"] as const) {
+  for (const key of ["isActive", "featured", "newArrival"] as const) {
     if (input[key] !== undefined) data[key] = Boolean(input[key]);
   }
   if (input.sortOrder !== undefined) data.sortOrder = Number(input.sortOrder) || 0;
