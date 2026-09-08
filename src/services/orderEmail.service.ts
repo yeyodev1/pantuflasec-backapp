@@ -119,7 +119,7 @@ export async function sendOrderLinks(email: string, orders: IOrder[]): Promise<v
     .map(
       (o) => `<tr>
         <td style="padding:8px 0"><strong>${o.number}</strong><br><span style="color:#71717a;font-size:13px">${new Date(o.createdAt ?? Date.now()).toLocaleDateString("es-EC")} · ${money(o.total)}</span></td>
-        <td align="right" style="padding:8px 0"><a href="${env.FRONTEND_URL}/pedido/${o.clientTransactionId}" style="background:#e6285c;color:#fff;padding:8px 14px;border-radius:999px;text-decoration:none;font-size:13px">Ver pedido</a></td></tr>`,
+        <td align="right" style="padding:8px 0"><a href="${env.FRONTEND_URL}/pedido/${o.clientTransactionId}" style="background:#2f7ce6;color:#fff;padding:8px 14px;border-radius:999px;text-decoration:none;font-size:13px">Ver pedido</a></td></tr>`,
     )
     .join("");
   await sendEmail(
