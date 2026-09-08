@@ -17,13 +17,15 @@ export const PICKUP_POINTS: Record<string, { name: string; address: string; city
   },
 };
 
+/** Métodos de entrega iniciales. El admin los edita en `Setting` (`shipping.service.ts`). */
 export const SHIPPING_METHODS = [
   { key: "pickup-garzota", label: "Retiro en La Garzota (Guayaquil)", cost: 0 },
   { key: "pickup-joya", label: "Retiro en La Joya (Plaza Sevilla)", cost: 0 },
   { key: "gye", label: "Envío en Guayaquil", cost: 3 },
   { key: "ec", label: "Envío a provincias (Servientrega, 24 a 72 h)", cost: 6 },
 ] as const;
-export type ShippingMethod = (typeof SHIPPING_METHODS)[number]["key"];
+/** Las claves las genera el admin: los retiros siempre empiezan con `pickup-`. */
+export type ShippingMethod = string;
 export const isPickup = (key: string) => key.startsWith("pickup");
 
 export const ORDER_STATUSES = [
