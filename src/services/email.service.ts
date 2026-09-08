@@ -53,7 +53,9 @@ export function layout(siteUrl: string, title: string, body: string): string {
         <tr><td style="padding:18px 32px;background:#fdfcfa;color:#8a8590;font-size:12px;line-height:1.6">
           Pantuflas Ecuador · La Garzota, Av. Agustín Freire frente al Garzocentro · La Joya, Plaza Sevilla<br>
           WhatsApp <a href="https://wa.me/593982401562" style="color:#2f7ce6">+593 98 240 1562</a> ·
-          <a href="https://instagram.com/pantuflasec" style="color:#2f7ce6">@pantuflasec</a> ·
+          <a href="https://instagram.com/pantuflasec" style="color:#2f7ce6">Instagram</a> ·
+          <a href="https://www.tiktok.com/@pantuflasec" style="color:#2f7ce6">TikTok</a> ·
+          <a href="https://www.facebook.com/share/19QsuSy5Tc/" style="color:#2f7ce6">Facebook</a> ·
           <a href="${site}" style="color:#2f7ce6">pantuflas.ec</a>
         </td></tr>
       </table>
