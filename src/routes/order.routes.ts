@@ -17,5 +17,6 @@ router.get("/admin/summary", authMiddleware, staffMiddleware, orderController.su
 router.get("/admin/all", authMiddleware, staffMiddleware, orderController.listAll);
 router.get("/admin/:id", authMiddleware, staffMiddleware, orderController.getById);
 router.put("/admin/:id/status", authMiddleware, staffMiddleware, orderController.setStatus);
+router.post("/admin/:id/events", authMiddleware, staffMiddleware, orderController.addEvent);
 
 export default router;
