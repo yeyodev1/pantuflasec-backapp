@@ -109,3 +109,27 @@ export async function sendOrderCreated(order: IOrder): Promise<void> {
     ),
   );
 }
+
+/**
+ * "Mis pedidos" desde otro dispositivo: se manda al correo la lista con sus
+ * enlaces de seguimiento. Así nadie ve pedidos ajenos con solo saber un correo.
+ */
+export async function sendOrderLinks(email: string, orders: IOrder[]): Promise<void> {
+  const rows = orders
+    .map(
+      (o) => `<tr>
+        <td style="padding:8px 0"><strong>${o.number}</strong><br><span style="color:#71717a;font-size:13px">${new Date(o.createdAt ?? Date.now()).toLocaleDateString("es-EC")} · ${money(o.total)}</span></td>
+        <td align="right" style="padding:8px 0"><a href="${env.FRONTEND_URL}/pedido/${o.clientTransactionId}" style="background:#e6285c;color:#fff;padding:8px 14px;border-radius:999px;text-decoration:none;font-size:13px">Ver pedido</a></td></tr>`,
+    )
+    .join("");
+  await sendEmail(
+    email,
+    "Tus pedidos en Pantuflas Ecuador",
+    layout(
+      "Aquí están tus pedidos",
+      `<p>Estos son los pedidos hechos con este correo. Toca "Ver pedido" para seguir cada uno.</p>
+       <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eee">${rows}</table>
+       <p style="color:#71717a;font-size:13px">Si no pediste este correo, ignóralo.</p>`,
+    ),
+  );
+}
