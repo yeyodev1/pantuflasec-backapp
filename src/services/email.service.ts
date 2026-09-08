@@ -33,18 +33,29 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
   }
 }
 
-/** Plantilla base: tarjeta blanca centrada con encabezado de marca. */
+const LOGO =
+  "https://res.cloudinary.com/afwyrt75/image/upload/c_crop,w_360,h_130,x_44,y_158/f_png/pantuflasec/marca/kdiwg79agtwcurg3136v.jpg";
+
+/** Plantilla base: tarjeta blanca centrada con el logo y pie de contacto. */
 export function layout(title: string, body: string): string {
+  const site = env.FRONTEND_URL.replace(/\/$/, "");
   return `
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 0;font-family:Arial,Helvetica,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1ece6;padding:32px 0;font-family:Arial,Helvetica,sans-serif">
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden">
-        <tr><td style="background:#111;color:#fff;padding:20px 32px;font-size:18px;font-weight:bold">Pantuflasec</td></tr>
-        <tr><td style="padding:32px;color:#111;font-size:15px;line-height:1.6">
-          <h1 style="margin:0 0 16px;font-size:22px">${title}</h1>
+        <tr><td align="center" style="background:#ffcc00;padding:18px 32px">
+          <a href="${site}"><img src="${LOGO}" width="200" alt="Pantuflas Ecuador" style="display:block;border:0"></a>
+        </td></tr>
+        <tr><td style="padding:32px;color:#191423;font-size:15px;line-height:1.6">
+          <h1 style="margin:0 0 16px;font-size:22px;color:#191423">${title}</h1>
           ${body}
         </td></tr>
-        <tr><td style="padding:16px 32px;color:#71717a;font-size:12px">© ${new Date().getFullYear()} Pantuflasec</td></tr>
+        <tr><td style="padding:18px 32px;background:#fdfcfa;color:#8a8590;font-size:12px;line-height:1.6">
+          Pantuflas Ecuador · La Garzota, Av. Agustín Freire frente al Garzocentro · La Joya, Plaza Sevilla<br>
+          WhatsApp <a href="https://wa.me/593982401562" style="color:#e6285c">+593 98 240 1562</a> ·
+          <a href="https://instagram.com/pantuflasec" style="color:#e6285c">@pantuflasec</a> ·
+          <a href="${site}" style="color:#e6285c">pantuflas.ec</a>
+        </td></tr>
       </table>
     </td></tr>
   </table>`;
