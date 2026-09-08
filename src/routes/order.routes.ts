@@ -8,6 +8,7 @@ import * as orderController from "../controllers/order.controller";
 const router = Router();
 
 router.get("/config", orderController.config);
+router.get("/quote", orderController.quote);
 router.post("/", optionalAuth, orderController.create);
 router.post("/confirm", orderController.confirm);
 router.get("/track/:token", orderController.track);
