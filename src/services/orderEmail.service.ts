@@ -54,3 +54,58 @@ export async function sendOrderPaid(order: IOrder): Promise<void> {
     ),
   );
 }
+
+const STATUS_COPY: Record<string, { subject: string; title: string; text: string }> = {
+  preparing: {
+    subject: "Estamos preparando tu pedido",
+    title: "¡Manos a la obra!",
+    text: "Ya estamos armando tu pedido con mucho cuidado. Te avisamos en cuanto salga o esté listo para retirar.",
+  },
+  shipped: {
+    subject: "Tu pedido va en camino",
+    title: "¡Salió tu pedido!",
+    text: "Tu pedido ya está en camino. Si elegiste retiro en tienda, ya puedes pasar a recogerlo.",
+  },
+  delivered: {
+    subject: "Tu pedido fue entregado",
+    title: "¡Entregado!",
+    text: "Esperamos que lo disfrutes. Si algo no llegó como esperabas, escríbenos por WhatsApp y lo resolvemos.",
+  },
+  cancelled: {
+    subject: "Tu pedido fue cancelado",
+    title: "Pedido cancelado",
+    text: "Tu pedido quedó cancelado. Si fue un error o tienes dudas sobre el reembolso, escríbenos por WhatsApp.",
+  },
+};
+
+/** Al cliente cuando el admin cambia el estado. Estados sin copy (pending, paid) no mandan nada. */
+export async function sendOrderStatus(order: IOrder): Promise<void> {
+  const copy = STATUS_COPY[order.status];
+  if (!copy) return;
+  const link = `${env.FRONTEND_URL}/pedido/${order.clientTransactionId}`;
+  await sendEmail(
+    order.customer.email,
+    `${copy.subject} · ${order.number}`,
+    layout(
+      copy.title,
+      `<p>Hola ${order.customer.name.split(" ")[0]}, ${copy.text}</p>
+       ${itemsTable(order)}
+       <p><strong>Entrega:</strong> ${order.shipping.label}${order.shipping.address ? ` · ${order.shipping.address}, ${order.shipping.city}` : ""}</p>
+       <p>Sigue tu pedido en <a href="${link}">${link}</a>.</p>`,
+    ),
+  );
+}
+
+/** Al admin apenas se crea un pedido (aún sin pagar): para tener visibilidad de intentos de compra. */
+export async function sendOrderCreated(order: IOrder): Promise<void> {
+  await sendEmail(
+    env.ADMIN_EMAIL,
+    `Nuevo pedido ${order.number} en espera de pago · ${money(order.total)}`,
+    layout(
+      `Pedido ${order.number} creado`,
+      `<p><strong>${order.customer.name}</strong> · ${order.customer.email} · ${order.customer.phone}</p>
+       ${itemsTable(order)}
+       <p>Todavía no está pagado. Cuando PayPhone confirme el cobro te llega otro correo.</p>`,
+    ),
+  );
+}
