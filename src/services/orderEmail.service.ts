@@ -22,13 +22,13 @@ function itemsTable(order: IOrder): string {
 }
 
 /** Al cliente: confirmación de pago. Al admin: aviso para preparar. Nunca lanza. */
-export async function sendOrderPaid(order: IOrder): Promise<void> {
+export async function sendOrderPaid(order: IOrder): Promise<boolean> {
   const link = `${base(order)}/pedido/${order.clientTransactionId}`;
   const address = order.shipping.method.startsWith("pickup")
     ? `${order.shipping.label}: ${order.shipping.address}, ${order.shipping.city}.`
     : `${order.shipping.address}, ${order.shipping.city}${order.shipping.reference ? ` (${order.shipping.reference})` : ""}`;
 
-  await sendEmail(
+  const sent = await sendEmail(
     order.customer.email,
     `Pedido ${order.number} confirmado — Pantuflasec`,
     layout(
@@ -42,7 +42,7 @@ export async function sendOrderPaid(order: IOrder): Promise<void> {
     ),
   );
 
-  await sendEmail(
+  void sendEmail(
     env.ADMIN_EMAIL,
     `Nuevo pedido pagado ${order.number} · ${money(order.total)}`,
     layout(
@@ -57,6 +57,7 @@ export async function sendOrderPaid(order: IOrder): Promise<void> {
        <p>PayPhone: ${order.payment.authorizationCode} · ${order.payment.cardBrand}</p>`,
     ),
   );
+  return sent;
 }
 
 const STATUS_COPY: Record<string, { subject: string; title: string; text: string }> = {
@@ -83,11 +84,11 @@ const STATUS_COPY: Record<string, { subject: string; title: string; text: string
 };
 
 /** Al cliente cuando el admin cambia el estado. Estados sin copy (pending, paid) no mandan nada. */
-export async function sendOrderStatus(order: IOrder): Promise<void> {
+export async function sendOrderStatus(order: IOrder): Promise<boolean> {
   const copy = STATUS_COPY[order.status];
-  if (!copy) return;
+  if (!copy) return false;
   const link = `${base(order)}/pedido/${order.clientTransactionId}`;
-  await sendEmail(
+  return sendEmail(
     order.customer.email,
     `${copy.subject} · ${order.number}`,
     layout(
@@ -102,8 +103,8 @@ export async function sendOrderStatus(order: IOrder): Promise<void> {
 }
 
 /** Al admin apenas se crea un pedido (aún sin pagar): para tener visibilidad de intentos de compra. */
-export async function sendOrderCreated(order: IOrder): Promise<void> {
-  await sendEmail(
+export async function sendOrderCreated(order: IOrder): Promise<boolean> {
+  return sendEmail(
     env.ADMIN_EMAIL,
     `Nuevo pedido ${order.number} en espera de pago · ${money(order.total)}`,
     layout(
