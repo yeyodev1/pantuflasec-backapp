@@ -10,6 +10,7 @@ router.get("/config", orderController.config);
 router.post("/", optionalAuth, orderController.create);
 router.post("/confirm", orderController.confirm);
 router.get("/track/:token", orderController.track);
+router.post("/lookup", orderController.lookup);
 
 router.get("/admin/summary", authMiddleware, adminMiddleware, orderController.summary);
 router.get("/admin/all", authMiddleware, adminMiddleware, orderController.listAll);
