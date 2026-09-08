@@ -16,6 +16,7 @@ import {
 } from "./orderInput.service";
 import { markPaid } from "./orderPayment.service";
 import { getPayments } from "./setting.service";
+import { MAX_DELIVERY_KM } from "../config/shop";
 import { activeShipping } from "./shipping.service";
 import { logEvent } from "./orderEvent.service";
 
@@ -44,6 +45,8 @@ export async function config() {
     taxRate: env.TAX_RATE,
     /** Los precios del catálogo ya traen IVA: el checkout lo muestra, no lo suma. */
     taxIncluded: true,
+    /** Radio de la entrega en moto y punto de salida, para el mapa del checkout. */
+    delivery: { maxKm: MAX_DELIVERY_KM, origin: { lat: env.STORE_LAT, lng: env.STORE_LNG } },
     payphone: payphone.isPayphoneConfigured() ? payphone.boxCredentials() : null,
     payments,
   };
@@ -125,6 +128,8 @@ export async function create(input: CheckoutInput, userId: string | null, siteUr
     taxRate: env.TAX_RATE,
     tax,
     taxIncluded: true,
+    /** Radio de la entrega en moto y punto de salida, para el mapa del checkout. */
+    delivery: { maxKm: MAX_DELIVERY_KM, origin: { lat: env.STORE_LAT, lng: env.STORE_LNG } },
     total,
     payment: { method },
   });
