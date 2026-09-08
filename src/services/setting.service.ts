@@ -78,8 +78,9 @@ export interface PaymentSettings {
 }
 
 const PAYMENTS_DEFAULT: PaymentSettings = {
+  // Activa desde el arranque: sin cuentas cargadas, el cliente pide los datos por WhatsApp.
   transfer: {
-    enabled: false,
+    enabled: true,
     accounts: [],
     instructions:
       "Transfiere el total exacto y pon el número de pedido en la descripción. Luego sube la captura del comprobante aquí mismo.",
@@ -130,12 +131,6 @@ export async function setPayments(input: Partial<PaymentSettings>): Promise<Paym
     if (!a.bank || !a.number || !a.holder) {
       throw new CustomError("Cada cuenta necesita banco, número y titular", 400);
     }
-  }
-  if (transferEnabled && !accounts.length) {
-    throw new CustomError(
-      "Agrega al menos una cuenta bancaria antes de activar las transferencias",
-      400,
-    );
   }
   const value: PaymentSettings = {
     transfer: {
