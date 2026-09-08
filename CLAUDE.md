@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Express 5 + TypeScript (CommonJS, target ES2024)
 - MongoDB via Mongoose (`DB_URI`)
 - JWT Bearer (`JWT_SECRET`, 30 días)
-- Resend para correo (opcional: sin key no envía)
+- Resend para correo desde `team@pantuflas.ec` (dominio verificado; sin key no envía)
 - Cloudinary para fotos subidas desde el admin (opcional: sin keys, `POST /uploads/image` responde 503)
 - PayPhone (Cajita de Pagos): `PAYPHONE_TOKEN` + `PAYPHONE_STORE_ID`; el server solo confirma
 - Vercel: `api/index.ts` es la función; `vercel.json` reescribe todo a `/api`. Producción en
@@ -47,7 +47,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   en centavos para `PPaymentButtonBox`. PayPhone redirige al front con `id` y
   `clientTransactionId`; `POST /orders/confirm` llama a `paymentbox…/api/confirm`, marca pagado,
   descuenta stock y manda correos. Es idempotente. Hay 5 min para confirmar o PayPhone reversa.
-  Público: `/orders/config`, `/orders/track/:token` (token = clientTransactionId, un UUID).
+  Público: `/orders/config`, `/orders/track/:token` (token = clientTransactionId, un UUID),
+  `POST /orders/lookup` ({ email }) que manda por correo los enlaces de los pedidos (siempre 200).
+  Correos (`orderEmail.service.ts`): admin al crear pedido, cliente + admin al pagar, cliente en
+  cada cambio de estado (preparing, shipped, delivered, cancelled). Plantilla con logo en `email.service.ts`.
+  `GET /orders/admin/summary` da el contador de pedidos por atender para el header.
   Admin: `/orders/admin/all`, `/orders/admin/:id`, `PUT /orders/admin/:id/status`.
 - **config/shop.ts** — métodos de envío y estados de pedido. Cambiar precios de envío ahí.
 - **users** — admin: `GET/POST /users`, `PUT /users/:id` (nombre, teléfono, rol, activo,
