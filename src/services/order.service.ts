@@ -15,6 +15,7 @@ const PAGE_SIZE = 30;
 export interface CheckoutInput {
   customer?: { name?: string; email?: string; phone?: string; documentId?: string };
   shipping?: { method?: string; address?: string; city?: string; reference?: string; notes?: string };
+  billing?: { wanted?: boolean; sameAsCustomer?: boolean; documentId?: string; name?: string; email?: string; phone?: string };
   items?: Array<{ productId?: string; variantId?: string | null; qty?: number }>;
 }
 
@@ -57,6 +58,7 @@ export async function create(input: CheckoutInput, userId: string | null, siteUr
   requireDb();
   const customer = validateCustomer(input.customer ?? {});
   const shipping = validateShipping(input.shipping ?? {});
+  const billing = validateBilling(input.billing ?? {}, customer);
   const items = await buildItems(input.items ?? []);
 
   const subtotal = round2(items.reduce((n, i) => n + i.subtotal, 0));
@@ -70,6 +72,7 @@ export async function create(input: CheckoutInput, userId: string | null, siteUr
     siteUrl,
     userId,
     customer,
+    billing,
     shipping,
     items,
     subtotal,
@@ -206,6 +209,22 @@ function validateCustomer(c: NonNullable<CheckoutInput["customer"]>) {
     phone: phone.startsWith("+") ? phone : `+593${phone.replace(/^0/, "")}`,
     documentId: String(c.documentId ?? "").trim(),
   };
+}
+
+/** Factura: con los mismos datos del cliente o con RUC/cédula y nombre propios. */
+function validateBilling(b: NonNullable<CheckoutInput["billing"]>, customer: ReturnType<typeof validateCustomer>) {
+  if (!b.wanted) return { wanted: false, documentId: "", name: "", email: "", phone: "" };
+  const same = b.sameAsCustomer !== false;
+  const documentId = String((same ? customer.documentId : b.documentId) ?? "").replace(/\D/g, "");
+  const name = same ? customer.name : String(b.name ?? "").trim();
+  const email = same ? customer.email : String(b.email ?? "").trim().toLowerCase();
+  const phone = same ? customer.phone : String(b.phone ?? "").replace(/\s+/g, "");
+  if (!/^\d{10}$|^\d{13}$/.test(documentId)) {
+    throw new CustomError("Para la factura escribe una cédula (10 dígitos) o RUC (13 dígitos) válido", 400);
+  }
+  if (name.length < 3) throw new CustomError("Escribe el nombre o razón social para la factura", 400);
+  if (!EMAIL.test(email)) throw new CustomError("Escribe un correo válido para la factura", 400);
+  return { wanted: true, documentId, name, email, phone };
 }
 
 function validateShipping(s: NonNullable<CheckoutInput["shipping"]>) {
