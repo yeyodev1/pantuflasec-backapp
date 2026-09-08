@@ -37,8 +37,8 @@ const LOGO =
   "https://res.cloudinary.com/afwyrt75/image/upload/c_crop,w_360,h_130,x_44,y_158/f_png/pantuflasec/marca/kdiwg79agtwcurg3136v.jpg";
 
 /** Plantilla base: tarjeta blanca centrada con el logo y pie de contacto. */
-export function layout(title: string, body: string): string {
-  const site = env.FRONTEND_URL.replace(/\/$/, "");
+export function layout(siteUrl: string, title: string, body: string): string {
+  const site = (siteUrl || env.FRONTEND_URL).replace(/\/$/, "");
   return `
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff6d6;padding:32px 0;font-family:Arial,Helvetica,sans-serif">
     <tr><td align="center">
