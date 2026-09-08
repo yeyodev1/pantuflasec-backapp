@@ -1,5 +1,12 @@
 import mongoose, { Model, Schema } from "mongoose";
-import { ORDER_STATUSES, OrderStatus, PAYMENT_STATUSES, PaymentStatus } from "../config/shop";
+import {
+  ORDER_STATUSES,
+  OrderStatus,
+  PAYMENT_METHODS,
+  PAYMENT_STATUSES,
+  PaymentMethod,
+  PaymentStatus,
+} from "../config/shop";
 
 export interface IOrderItem {
   productId: string;
@@ -35,21 +42,30 @@ export interface IOrder {
   subtotal: number;
   shippingCost: number;
   taxRate: number;
+  /** Con `taxIncluded` el IVA es informativo: ya viene dentro del subtotal. */
   tax: number;
+  taxIncluded: boolean;
   total: number;
   status: OrderStatus;
   payment: {
-    method: "payphone";
+    method: PaymentMethod;
     status: PaymentStatus;
     payphoneId: number | null;
     authorizationCode: string;
     cardBrand: string;
     paidAt: Date | null;
     message: string;
+    /** Captura de la transferencia que sube el cliente. */
+    proof: { url: string; publicId: string; note: string; uploadedAt: Date | null };
+    reviewedBy: string;
+    reviewedAt: Date | null;
+    rejectReason: string;
   };
   stockIssue: boolean;
   /** Historial visible en el panel: creación, pago, correos, cambios de estado y contactos. */
   events: Array<{ at: Date; kind: string; detail: string; by: string }>;
+  /** Conversación cliente ↔ equipo sobre el pedido (se ve en el seguimiento y en el panel). */
+  messages: Array<{ at: Date; from: "customer" | "team"; by: string; text: string }>;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -100,16 +116,26 @@ const orderSchema = new Schema<IOrder>(
     shippingCost: { type: Number, default: 0 },
     taxRate: { type: Number, default: 0 },
     tax: { type: Number, default: 0 },
+    taxIncluded: { type: Boolean, default: false },
     total: { type: Number, required: true },
     status: { type: String, enum: ORDER_STATUSES, default: "pending_payment", index: true },
     payment: {
-      method: { type: String, default: "payphone" },
-      status: { type: String, enum: PAYMENT_STATUSES, default: "pending" },
+      method: { type: String, enum: PAYMENT_METHODS, default: "payphone" },
+      status: { type: String, enum: PAYMENT_STATUSES, default: "pending", index: true },
       payphoneId: { type: Number, default: null },
       authorizationCode: { type: String, default: "" },
       cardBrand: { type: String, default: "" },
       paidAt: { type: Date, default: null },
       message: { type: String, default: "" },
+      proof: {
+        url: { type: String, default: "" },
+        publicId: { type: String, default: "" },
+        note: { type: String, default: "" },
+        uploadedAt: { type: Date, default: null },
+      },
+      reviewedBy: { type: String, default: "" },
+      reviewedAt: { type: Date, default: null },
+      rejectReason: { type: String, default: "" },
     },
     stockIssue: { type: Boolean, default: false },
     events: {
@@ -120,6 +146,20 @@ const orderSchema = new Schema<IOrder>(
             kind: { type: String, required: true },
             detail: { type: String, default: "" },
             by: { type: String, default: "" },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
+    messages: {
+      type: [
+        new Schema(
+          {
+            at: { type: Date, default: Date.now },
+            from: { type: String, enum: ["customer", "team"], required: true },
+            by: { type: String, default: "" },
+            text: { type: String, required: true },
           },
           { _id: false },
         ),
