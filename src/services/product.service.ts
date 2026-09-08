@@ -4,6 +4,7 @@ import { Product, IProduct, IVariant, CATEGORIES, Category } from "../models/pro
 import { slugify } from "../utils/slugify";
 
 const PAGE_SIZE_MAX = 60;
+export const MAX_IMAGES = 5;
 
 export interface ListQuery {
   q?: string;
@@ -252,9 +253,13 @@ function validate(input: ProductInput, creating: boolean): Record<string, unknow
   }
   if (input.variants !== undefined) data.variants = validateVariants(input.variants);
   if (input.images !== undefined) {
-    data.images = (input.images ?? [])
+    const images = (input.images ?? [])
       .filter((i) => i && typeof i.url === "string" && i.url.trim())
       .map((i) => ({ url: i.url.trim(), publicId: i.publicId ?? "" }));
+    if (images.length > MAX_IMAGES) {
+      throw new CustomError(`Un producto lleva máximo ${MAX_IMAGES} fotos`, 400);
+    }
+    data.images = images;
   }
   if (input.tags !== undefined) {
     data.tags = (input.tags ?? []).map((t) => String(t).trim().toLowerCase()).filter(Boolean);
