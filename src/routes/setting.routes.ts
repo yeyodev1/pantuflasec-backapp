@@ -11,5 +11,7 @@ router.use(authMiddleware, adminMiddleware);
 router.put("/hero", settingController.setHero);
 router.get("/payments", settingController.payments);
 router.put("/payments", settingController.setPayments);
+router.get("/shipping", settingController.shipping);
+router.put("/shipping", settingController.setShipping);
 
 export default router;
