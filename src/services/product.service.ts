@@ -158,8 +158,21 @@ export async function facets() {
     ]),
   ]);
   const counts = new Map(byCategory.map((c) => [c._id, c.count]));
+  // Foto de portada por categoría: el destacado más reciente con imagen.
+  const covers = await Promise.all(
+    CATEGORIES.map((key) =>
+      Product.findOne({ category: key, isActive: true, "images.0": { $exists: true } })
+        .sort({ featured: -1, createdAt: -1 })
+        .select("images slug")
+        .lean(),
+    ),
+  );
   return {
-    categories: CATEGORIES.map((key) => ({ key, count: counts.get(key) ?? 0 })),
+    categories: CATEGORIES.map((key, i) => ({
+      key,
+      count: counts.get(key) ?? 0,
+      cover: covers[i]?.images[0]?.url ?? null,
+    })),
     collections: byCollection.map((c) => ({ name: c._id as string, count: c.count as number })),
   };
 }
