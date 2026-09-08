@@ -54,6 +54,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   Correos (`orderEmail.service.ts`): admin al crear pedido, cliente + admin al pagar, cliente en
   cada cambio de estado (preparing, shipped, delivered, cancelled). Plantilla con logo en `email.service.ts`.
   `GET /orders/admin/summary` da el contador de pedidos por atender para el header.
+  Cada pedido lleva `events[]` (creado, pago, correo enviado o fallido, cambio de estado, contacto
+  por WhatsApp/llamada/correo, nota) que alimenta el historial del panel; el equipo anota contactos
+  con `POST /orders/admin/:id/events`. La validación del checkout vive en `orderInput.service.ts`.
   Admin: `/orders/admin/all`, `/orders/admin/:id`, `PUT /orders/admin/:id/status`.
 - **config/shop.ts** — métodos de envío y estados de pedido. Cambiar precios de envío ahí.
 - **users** — admin: `GET/POST /users`, `PUT /users/:id` (nombre, teléfono, rol, activo,
