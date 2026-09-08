@@ -3,6 +3,7 @@ import { IOrder } from "../models/order.model";
 import { layout, sendEmail } from "./email.service";
 
 const money = (n: number) => `$${n.toFixed(2)}`;
+const base = (order: IOrder) => (order.siteUrl || env.FRONTEND_URL).replace(/\/$/, "");
 
 function itemsTable(order: IOrder): string {
   const rows = order.items
@@ -22,7 +23,7 @@ function itemsTable(order: IOrder): string {
 
 /** Al cliente: confirmación de pago. Al admin: aviso para preparar. Nunca lanza. */
 export async function sendOrderPaid(order: IOrder): Promise<void> {
-  const link = `${env.FRONTEND_URL}/pedido/${order.clientTransactionId}`;
+  const link = `${base(order)}/pedido/${order.clientTransactionId}`;
   const address = order.shipping.method.startsWith("pickup")
     ? `${order.shipping.label}: ${order.shipping.address}, ${order.shipping.city}.`
     : `${order.shipping.address}, ${order.shipping.city}${order.shipping.reference ? ` (${order.shipping.reference})` : ""}`;
@@ -31,6 +32,7 @@ export async function sendOrderPaid(order: IOrder): Promise<void> {
     order.customer.email,
     `Pedido ${order.number} confirmado — Pantuflasec`,
     layout(
+      base(order),
       `¡Gracias, ${order.customer.name.split(" ")[0]}!`,
       `<p>Recibimos tu pago y ya estamos preparando tu pedido <strong>${order.number}</strong>.</p>
        ${itemsTable(order)}
@@ -44,6 +46,7 @@ export async function sendOrderPaid(order: IOrder): Promise<void> {
     env.ADMIN_EMAIL,
     `Nuevo pedido pagado ${order.number} · ${money(order.total)}`,
     layout(
+      base(order),
       `Pedido ${order.number}`,
       `<p><strong>${order.customer.name}</strong> · ${order.customer.email} · ${order.customer.phone}</p>
        ${itemsTable(order)}
@@ -82,11 +85,12 @@ const STATUS_COPY: Record<string, { subject: string; title: string; text: string
 export async function sendOrderStatus(order: IOrder): Promise<void> {
   const copy = STATUS_COPY[order.status];
   if (!copy) return;
-  const link = `${env.FRONTEND_URL}/pedido/${order.clientTransactionId}`;
+  const link = `${base(order)}/pedido/${order.clientTransactionId}`;
   await sendEmail(
     order.customer.email,
     `${copy.subject} · ${order.number}`,
     layout(
+      base(order),
       copy.title,
       `<p>Hola ${order.customer.name.split(" ")[0]}, ${copy.text}</p>
        ${itemsTable(order)}
@@ -102,6 +106,7 @@ export async function sendOrderCreated(order: IOrder): Promise<void> {
     env.ADMIN_EMAIL,
     `Nuevo pedido ${order.number} en espera de pago · ${money(order.total)}`,
     layout(
+      base(order),
       `Pedido ${order.number} creado`,
       `<p><strong>${order.customer.name}</strong> · ${order.customer.email} · ${order.customer.phone}</p>
        ${itemsTable(order)}
@@ -114,18 +119,19 @@ export async function sendOrderCreated(order: IOrder): Promise<void> {
  * "Mis pedidos" desde otro dispositivo: se manda al correo la lista con sus
  * enlaces de seguimiento. Así nadie ve pedidos ajenos con solo saber un correo.
  */
-export async function sendOrderLinks(email: string, orders: IOrder[]): Promise<void> {
+export async function sendOrderLinks(email: string, orders: IOrder[], siteUrl: string): Promise<void> {
   const rows = orders
     .map(
       (o) => `<tr>
         <td style="padding:8px 0"><strong>${o.number}</strong><br><span style="color:#71717a;font-size:13px">${new Date(o.createdAt ?? Date.now()).toLocaleDateString("es-EC")} · ${money(o.total)}</span></td>
-        <td align="right" style="padding:8px 0"><a href="${env.FRONTEND_URL}/pedido/${o.clientTransactionId}" style="background:#2f7ce6;color:#fff;padding:8px 14px;border-radius:999px;text-decoration:none;font-size:13px">Ver pedido</a></td></tr>`,
+        <td align="right" style="padding:8px 0"><a href="${(o.siteUrl || siteUrl).replace(/\/$/, "")}/pedido/${o.clientTransactionId}" style="background:#2f7ce6;color:#fff;padding:8px 14px;border-radius:999px;text-decoration:none;font-size:13px">Ver pedido</a></td></tr>`,
     )
     .join("");
   await sendEmail(
     email,
     "Tus pedidos en Pantuflas Ecuador",
     layout(
+      siteUrl,
       "Aquí están tus pedidos",
       `<p>Estos son los pedidos hechos con este correo. Toca "Ver pedido" para seguir cada uno.</p>
        <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eee">${rows}</table>
