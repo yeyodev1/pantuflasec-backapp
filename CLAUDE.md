@@ -39,26 +39,45 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Módulos de la tienda
 
 - **products** — `Product` con `variants[]` (talla/color, stock y precio propio o `null` = base)
-  e `images[]`. Público: `GET /products` (q, category, collection, featured, sort, page),
+  e `images[]`. `newArrival` marca la sección "Nuevo" (no se llama `isNew`: Mongoose lo reserva).
+  Público: `GET /products` (q, category, collection, featured, newArrival, sort, page),
   `/products/facets`, `/products/:slug`. Admin: `/products/admin/all`, `/products/admin/:slug`,
   POST/PUT/DELETE. Búsqueda con índice `$text`. `reserveStock()` descuenta stock de forma atómica.
-- **orders** — `POST /orders` valida precios y stock contra la base (nunca confía en el carrito),
-  calcula `subtotal + envío + IVA (TAX_RATE)` y devuelve `{ order, payphone }` con los montos
-  en centavos para `PPaymentButtonBox`. PayPhone redirige al front con `id` y
-  `clientTransactionId`; `POST /orders/confirm` llama a `paymentbox…/api/confirm`, marca pagado,
-  descuenta stock y manda correos. Es idempotente. Hay 5 min para confirmar o PayPhone reversa.
+- **orders** — `POST /orders` valida precios y stock contra la base (nunca confía en el carrito).
+  **Los precios ya incluyen IVA** (`taxIncluded: true`): `tax` es el desglose informativo
+  (`subtotal - subtotal/1.15`) y `total = subtotal + envío`. Recibe `payment.method`
+  (`payphone` | `transfer` | `cash`, enum en `config/shop.ts`) y devuelve `{ order, payphone }`:
+  con tarjeta `payphone` trae los montos en centavos para `PPaymentButtonBox`; con los otros dos
+  es `null` y el pedido queda reservado (`pending_payment`). Efectivo solo con retiro en tienda.
+  PayPhone redirige al front con `id` y `clientTransactionId`; `POST /orders/confirm` llama a
+  `paymentbox…/api/confirm` y cierra con `markPaid()` (`orderPayment.service.ts`: estado, stock,
+  correos), igual que aprobar una transferencia. Es idempotente. Hay 5 min o PayPhone reversa.
+  **Transferencia:** el cliente sube la captura con `POST /orders/track/:token/proof` (multipart
+  `file` + `note`, va a Cloudinary en `pantuflasec-comprobantes/`, fuera de la biblioteca);
+  `payment.status` pasa a `review` y se avisa al admin. El equipo resuelve con
+  `PUT /orders/admin/:id/payment` `{ action: approve|reject, reason }`; rechazar guarda
+  `rejectReason`, avisa al cliente y deja subir otra captura. Efectivo se aprueba igual al retirar.
+  **Mensajes:** `order.messages[]` (cliente ↔ equipo). `POST /orders/track/:token/messages` y
+  `POST /orders/admin/:id/messages` (`orderMessage.service.ts`); cada lado recibe correo.
   Público: `/orders/config`, `/orders/track/:token` (token = clientTransactionId, un UUID),
   `POST /orders/lookup` ({ email }) que manda por correo los enlaces de los pedidos (siempre 200).
   Cada pedido guarda `siteUrl` (origen permitido de la petición, `utils/origin.ts`): los
   correos enlazan a ese dominio, sea pantuflas.ec, el de pruebas o localhost.
   Correos (`orderEmail.service.ts`): admin al crear pedido, cliente + admin al pagar, cliente en
   cada cambio de estado (preparing, shipped, delivered, cancelled). Plantilla con logo en `email.service.ts`.
-  `GET /orders/admin/summary` da el contador de pedidos por atender para el header.
+  `GET /orders/admin/summary` da el contador de pedidos por atender para el header (pagados +
+  empacando + comprobantes por revisar). `GET /orders/admin/all` filtra también por `pay=review`.
   Cada pedido lleva `events[]` (creado, pago, correo enviado o fallido, cambio de estado, contacto
   por WhatsApp/llamada/correo, nota) que alimenta el historial del panel; el equipo anota contactos
   con `POST /orders/admin/:id/events`. La validación del checkout vive en `orderInput.service.ts`.
   Admin: `/orders/admin/all`, `/orders/admin/:id`, `PUT /orders/admin/:id/status`.
-- **config/shop.ts** — métodos de envío y estados de pedido. Cambiar precios de envío ahí.
+  Correos de transferencia, efectivo, comprobante y mensajes en `paymentEmail.service.ts`.
+- **config/shop.ts** — métodos de envío, de pago y estados. Cambiar precios de envío ahí.
+- **settings** — ajustes que edita el admin (`Setting`, un doc por clave, validados en
+  `setting.service.ts`): `hero` (portada del home: foto, título, botón; pública en
+  `GET /settings/hero`) y `payments` (cuentas bancarias e instrucciones de transferencia y
+  efectivo; `GET/PUT /settings/payments` admin). `GET /orders/config` incluye `payments` y
+  `taxIncluded` para el checkout.
 - **users** — admin: `GET/POST /users`, `PUT /users/:id` (nombre, teléfono, rol, activo,
   contraseña), `DELETE /users/:id`. Un admin no puede quitarse el rol ni desactivarse a sí mismo.
   `pnpm user:create <correo> <clave> [admin|customer] [nombre]` crea o actualiza desde la terminal.
