@@ -1,10 +1,11 @@
 import { env } from "../config/env";
-import { ShippingMethod } from "../config/shop";
+import { MAX_DELIVERY_KM, ShippingMethod } from "../config/shop";
 import { CustomError } from "../errors/customError.error";
 import { IOrderItem } from "../models/order.model";
 import { Product } from "../models/product.model";
 import * as productService from "./product.service";
 import { findShipping } from "./shipping.service";
+import { quote } from "./maps.service";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -17,6 +18,7 @@ export interface CheckoutInput {
     city?: string;
     reference?: string;
     notes?: string;
+    location?: string;
   };
   billing?: {
     wanted?: boolean;
@@ -86,10 +88,37 @@ export async function validateShipping(s: NonNullable<CheckoutInput["shipping"]>
   if (!pickup && (address.length < 5 || !city)) {
     throw new CustomError("Escribe la dirección y la ciudad de entrega", 400);
   }
+  // Moto: el precio se cotiza aquí, nunca se confía en el del navegador.
+  let cost = method.cost;
+  let location = "";
+  let coords: { lat: number; lng: number } | null = null;
+  let km: number | null = null;
+  if (method.kind === "distance") {
+    location = String(s.location ?? "")
+      .trim()
+      .slice(0, 500);
+    if (!location)
+      throw new CustomError("Marca tu ubicación en el mapa para calcular el envío en moto", 400);
+    const q = await quote(location);
+    if (!q.coords)
+      throw new CustomError("No pudimos ubicar esa dirección. Marca el punto en el mapa", 400);
+    if (q.cost === null) {
+      throw new CustomError(
+        `Estás a ${q.km} km de la tienda: la moto llega hasta ${MAX_DELIVERY_KM} km. Elige envío a provincias o retiro`,
+        400,
+      );
+    }
+    cost = q.cost;
+    coords = q.coords;
+    km = q.km;
+  }
   return {
     method: method.key as ShippingMethod,
     label: method.label,
-    cost: method.cost,
+    cost,
+    location,
+    coords,
+    km,
     address: pickup ? method.address : address,
     city: pickup ? method.city : city,
     reference: String(s.reference ?? "").trim(),
