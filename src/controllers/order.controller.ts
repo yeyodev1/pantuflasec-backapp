@@ -41,6 +41,15 @@ export async function track(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+/** GET /api/orders/admin/summary — { pending, paid, preparing, today } */
+export async function summary(_req: Request, res: Response, next: NextFunction) {
+  try {
+    res.status(200).json(await orderService.summary());
+  } catch (error) {
+    next(error);
+  }
+}
+
 /** GET /api/orders/admin/all — query: status, q, page */
 export async function listAll(req: Request, res: Response, next: NextFunction) {
   try {
