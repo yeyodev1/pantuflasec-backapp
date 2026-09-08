@@ -40,7 +40,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **products** — `Product` con `variants[]` (talla/color, stock y precio propio o `null` = base)
   e `images[]`. `newArrival` marca la sección "Nuevo" (no se llama `isNew`: Mongoose lo reserva).
-  Público: `GET /products` (q, category, collection, featured, newArrival, sort, page),
+  `showOnHome` lo saca en el inicio agrupado por colección (check "Mostrar en el inicio").
+  Público: `GET /products` (q, category, collection, featured, newArrival, showOnHome, sort, page),
   `/products/facets`, `/products/:slug`. Admin: `/products/admin/all`, `/products/admin/:slug`,
   POST/PUT/DELETE. Búsqueda con índice `$text`. `reserveStock()` descuenta stock de forma atómica.
 - **orders** — `POST /orders` valida precios y stock contra la base (nunca confía en el carrito).
