@@ -8,16 +8,12 @@ import { Product } from "../models/product.model";
 import * as productService from "./product.service";
 import * as payphone from "./payphone.service";
 import { sendOrderCreated, sendOrderLinks, sendOrderPaid, sendOrderStatus } from "./orderEmail.service";
+import { CheckoutInput, buildItems, discountStock, validateBilling, validateCustomer, validateShipping } from "./orderInput.service";
+
+export type { CheckoutInput };
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PAGE_SIZE = 30;
-
-export interface CheckoutInput {
-  customer?: { name?: string; email?: string; phone?: string; documentId?: string };
-  shipping?: { method?: string; address?: string; city?: string; reference?: string; notes?: string };
-  billing?: { wanted?: boolean; sameAsCustomer?: boolean; documentId?: string; name?: string; email?: string; phone?: string };
-  items?: Array<{ productId?: string; variantId?: string | null; qty?: number }>;
-}
 
 function requireDb() {
   if (!isConnected()) throw new CustomError("El servidor no tiene base de datos disponible", 503);
@@ -83,8 +79,37 @@ export async function create(input: CheckoutInput, userId: string | null, siteUr
   });
 
   // No se espera: el correo al admin no debe retrasar la respuesta al cliente.
-  void sendOrderCreated(order.toObject());
+  void logEvent(order.id, "created", `Pedido creado desde ${siteUrl}`, order.customer.name);
+  void sendOrderCreated(order.toObject()).then((ok) =>
+    logEvent(order.id, ok ? "email" : "email-failed", `Aviso al admin (${env.ADMIN_EMAIL}): nuevo pedido en espera de pago`, "sistema"),
+  );
   return { order: order.toObject(), payphone: boxParams(order) };
+}
+
+export const EVENT_KINDS = ["contact-whatsapp", "contact-call", "contact-email", "note"] as const;
+
+/** Anota un hecho en el historial del pedido. Nunca lanza: es solo registro. */
+export async function logEvent(orderId: string, kind: string, detail: string, by: string): Promise<void> {
+  try {
+    await Order.updateOne({ _id: orderId }, { $push: { events: { at: new Date(), kind, detail, by } } });
+  } catch (error) {
+    console.error("[orders] no se pudo registrar el evento:", error);
+  }
+}
+
+/** Contacto o nota que hace el equipo desde el panel. */
+export async function addEvent(orderId: string, kind: string, detail: string, by: string): Promise<IOrder> {
+  requireDb();
+  if (!EVENT_KINDS.includes(kind as (typeof EVENT_KINDS)[number])) {
+    throw new CustomError("Tipo de evento inválido", 400);
+  }
+  const order = await Order.findByIdAndUpdate(
+    orderId,
+    { $push: { events: { at: new Date(), kind, detail: String(detail ?? "").slice(0, 300), by } } },
+    { new: true },
+  ).lean();
+  if (!order) throw new CustomError("Pedido no encontrado", 404);
+  return order;
 }
 
 /**
@@ -105,6 +130,7 @@ export async function confirm(payphoneId: number, clientTransactionId: string): 
   if (result.statusCode !== 3) {
     order.payment.status = result.statusCode === 2 ? "cancelled" : "failed";
     order.status = "cancelled";
+    order.events.push({ at: new Date(), kind: "payment-failed", detail: `PayPhone: ${order.payment.message || result.transactionStatus}`, by: "PayPhone" });
     await order.save();
     return order.toObject();
   }
@@ -120,9 +146,11 @@ export async function confirm(payphoneId: number, clientTransactionId: string): 
   order.payment.paidAt = new Date();
   order.status = "paid";
   order.stockIssue = !(await discountStock(order.items));
+  order.events.push({ at: new Date(), kind: "paid", detail: `Pago aprobado · ${order.payment.cardBrand} · aut. ${order.payment.authorizationCode}`, by: "PayPhone" });
   await order.save();
 
-  await sendOrderPaid(order.toObject());
+  const sent = await sendOrderPaid(order.toObject());
+  await logEvent(order.id, sent ? "email" : "email-failed", `Confirmación de pago a ${order.customer.email} y aviso al admin`, "sistema");
   return order.toObject();
 }
 
@@ -170,16 +198,24 @@ export async function getById(id: string): Promise<IOrder> {
   return order;
 }
 
-export async function setStatus(id: string, status: string): Promise<IOrder> {
+export async function setStatus(id: string, status: string, by = "equipo"): Promise<IOrder> {
   requireDb();
   if (!ORDER_STATUSES.includes(status as OrderStatus)) {
     throw new CustomError(`Estado inválido. Usa uno de: ${ORDER_STATUSES.join(", ")}`, 400);
   }
   const previous = await Order.findById(id).select("status").lean();
   if (!previous) throw new CustomError("Pedido no encontrado", 404);
-  const order = await Order.findByIdAndUpdate(id, { status }, { new: true }).lean();
+  const order = await Order.findByIdAndUpdate(
+    id,
+    { status, $push: { events: { at: new Date(), kind: "status", detail: `${previous.status} → ${status}`, by } } },
+    { new: true },
+  ).lean();
   if (!order) throw new CustomError("Pedido no encontrado", 404);
-  if (previous.status !== order.status) void sendOrderStatus(order);
+  if (previous.status !== order.status) {
+    void sendOrderStatus(order).then((sent) => {
+      if (sent) void logEvent(id, "email", `Correo "${status}" enviado a ${order.customer.email}`, "sistema");
+    });
+  }
   return order;
 }
 
@@ -194,105 +230,3 @@ export async function summary() {
   return { pending: paid + preparing, paid, preparing, today };
 }
 
-// --- Validación ---
-
-function validateCustomer(c: NonNullable<CheckoutInput["customer"]>) {
-  const name = String(c.name ?? "").trim();
-  const email = String(c.email ?? "").trim().toLowerCase();
-  const phone = String(c.phone ?? "").replace(/\s+/g, "");
-  if (name.length < 3) throw new CustomError("Escribe tu nombre completo", 400);
-  if (!EMAIL.test(email)) throw new CustomError("Escribe un correo válido", 400);
-  if (!/^\+?\d{9,15}$/.test(phone)) throw new CustomError("Escribe un celular válido", 400);
-  return {
-    name,
-    email,
-    phone: phone.startsWith("+") ? phone : `+593${phone.replace(/^0/, "")}`,
-    documentId: String(c.documentId ?? "").trim(),
-  };
-}
-
-/** Factura: con los mismos datos del cliente o con RUC/cédula y nombre propios. */
-function validateBilling(b: NonNullable<CheckoutInput["billing"]>, customer: ReturnType<typeof validateCustomer>) {
-  if (!b.wanted) return { wanted: false, documentId: "", name: "", email: "", phone: "" };
-  const same = b.sameAsCustomer !== false;
-  const documentId = String((same ? customer.documentId : b.documentId) ?? "").replace(/\D/g, "");
-  const name = same ? customer.name : String(b.name ?? "").trim();
-  const email = same ? customer.email : String(b.email ?? "").trim().toLowerCase();
-  const phone = same ? customer.phone : String(b.phone ?? "").replace(/\s+/g, "");
-  if (!/^\d{10}$|^\d{13}$/.test(documentId)) {
-    throw new CustomError("Para la factura escribe una cédula (10 dígitos) o RUC (13 dígitos) válido", 400);
-  }
-  if (name.length < 3) throw new CustomError("Escribe el nombre o razón social para la factura", 400);
-  if (!EMAIL.test(email)) throw new CustomError("Escribe un correo válido para la factura", 400);
-  return { wanted: true, documentId, name, email, phone };
-}
-
-function validateShipping(s: NonNullable<CheckoutInput["shipping"]>) {
-  const method = SHIPPING_METHODS.find((m) => m.key === s.method);
-  if (!method) throw new CustomError("Elige cómo quieres recibir tu pedido", 400);
-  const address = String(s.address ?? "").trim();
-  const city = String(s.city ?? "").trim();
-  const pickup = isPickup(method.key) ? PICKUP_POINTS[method.key] : null;
-  if (!pickup && (address.length < 5 || !city)) {
-    throw new CustomError("Escribe la dirección y la ciudad de entrega", 400);
-  }
-  return {
-    method: method.key as ShippingMethod,
-    label: method.label,
-    address: pickup ? pickup.address : address,
-    city: pickup ? pickup.city : city,
-    reference: String(s.reference ?? "").trim(),
-    notes: String(s.notes ?? "").trim().slice(0, 500),
-  };
-}
-
-/** Precio y stock salen de la base, nunca del carrito del navegador. */
-async function buildItems(raw: NonNullable<CheckoutInput["items"]>): Promise<IOrderItem[]> {
-  if (!raw.length) throw new CustomError("Tu carrito está vacío", 400);
-  const ids = [...new Set(raw.map((i) => String(i.productId ?? "")))];
-  const products = await Product.find({ _id: { $in: ids }, isActive: true }).lean();
-  const byId = new Map(products.map((p) => [String(p._id), p]));
-
-  return raw.map((line) => {
-    const product = byId.get(String(line.productId));
-    if (!product) throw new CustomError("Un producto del carrito ya no está disponible", 409);
-    const qty = Number(line.qty);
-    if (!Number.isInteger(qty) || qty < 1) throw new CustomError(`Cantidad inválida en ${product.name}`, 400);
-
-    const variant = line.variantId
-      ? product.variants.find((v) => String(v._id) === String(line.variantId))
-      : undefined;
-    if (product.variants.length && !variant) {
-      throw new CustomError(`Elige una opción para ${product.name}`, 400);
-    }
-    if (variant && variant.stock < qty) {
-      throw new CustomError(`Solo quedan ${variant.stock} de ${product.name} (${variant.label})`, 409);
-    }
-    const unitPrice = variant?.price ?? product.price;
-    return {
-      productId: String(product._id),
-      variantId: variant ? String(variant._id) : null,
-      name: product.name,
-      variantLabel: variant?.label ?? "",
-      image: product.images[0]?.url ?? "",
-      unitPrice,
-      qty,
-      subtotal: round2(unitPrice * qty),
-    };
-  });
-}
-
-/** Devuelve false si alguna línea no pudo descontarse (se avisa al admin, no se bloquea la venta). */
-async function discountStock(items: IOrderItem[]): Promise<boolean> {
-  let ok = true;
-  for (const item of items) {
-    if (!item.variantId) continue;
-    try {
-      await productService.reserveStock(item.productId, item.variantId, item.qty);
-    } catch (error) {
-      ok = false;
-      console.error(`[orders] sin stock al confirmar ${item.name} (${item.variantLabel}):`, error);
-    }
-  }
-  return ok;
-}
