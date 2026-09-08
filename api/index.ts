@@ -16,11 +16,23 @@ import { seedAdmin } from "../src/services/auth.service";
  */
 let arranque: Promise<Express> | null = null;
 
+/**
+ * Conecta con reintentos cortos. En un arranque frío Atlas o el DNS pueden
+ * fallar el primer intento y sin esto la instancia respondía 503 a todo.
+ */
+async function connectWithRetry(attempts = 3, waitMs = 600): Promise<boolean> {
+  for (let i = 1; i <= attempts; i++) {
+    if (await dbConnect()) return true;
+    if (i < attempts) await new Promise((r) => setTimeout(r, waitMs * i));
+  }
+  return false;
+}
+
 async function ensureApp(): Promise<Express> {
   if (!arranque) {
     arranque = (async () => {
-      await dbConnect();
-      await seedAdmin();
+      const ok = await connectWithRetry();
+      if (ok) await seedAdmin();
       return createApp().app;
     })().catch((error) => {
       // No se cachea un arranque fallido: la siguiente petición reintenta.
@@ -32,7 +44,7 @@ async function ensureApp(): Promise<Express> {
   const app = await arranque;
 
   if (!isConnected()) {
-    const reconectado = await dbConnect();
+    const reconectado = await connectWithRetry();
     if (reconectado) await seedAdmin();
   }
 
@@ -47,6 +59,7 @@ export default async function handler(req: any, res: any) {
     console.error("[api] no se pudo iniciar la aplicación:", error);
     res.statusCode = 503;
     res.setHeader("Content-Type", "application/json");
+    res.setHeader("Retry-After", "2");
     res.end(JSON.stringify({ message: "Servicio no disponible. Intenta de nuevo." }));
   }
 }
