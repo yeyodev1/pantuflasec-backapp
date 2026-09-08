@@ -16,6 +16,7 @@
     "seed:catalog": "ts-node-dev --transpile-only src/scripts/seed-catalog.ts",
     "user:create": "ts-node-dev --transpile-only src/scripts/create-user.ts",
     "images:migrate": "ts-node-dev --transpile-only src/scripts/migrate-images.ts",
+    "prices:adjust": "ts-node-dev --transpile-only src/scripts/adjust-prices.ts",
     "format": "prettier --write 'src/**/*.{ts,json,md}' 'api/**/*.ts'"
   },
   "dependencies": {
