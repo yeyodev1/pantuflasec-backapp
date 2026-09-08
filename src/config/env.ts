@@ -45,6 +45,13 @@ export const env = {
   PAYPHONE_TOKEN: optional("PAYPHONE_TOKEN", ""),
   PAYPHONE_STORE_ID: optional("PAYPHONE_STORE_ID", ""),
   PAYPHONE_RESPONSE_URL: optional("PAYPHONE_RESPONSE_URL", ""),
+  /** Google Routes/Geocoding para la entrega en moto por distancia. Sin key cae a Valhalla/OSRM (gratis). */
+  GOOGLE_MAPS_API_KEY: optional("GOOGLE_MAPS_API_KEY", ""),
+  /** Google calcula la ruta óptima, algo más corta que lo que rueda el motorizado: se rellena. */
+  GOOGLE_KM_FACTOR: Number(optional("GOOGLE_KM_FACTOR", "1.1")),
+  /** Tienda desde la que sale la moto (La Garzota, frente al Garzocentro). */
+  STORE_LAT: Number(optional("STORE_LAT", "-2.1439275")),
+  STORE_LNG: Number(optional("STORE_LNG", "-79.8929153")),
   /** IVA (15%). Los precios del catálogo ya lo incluyen: solo se desglosa, no se suma. */
   TAX_RATE: Number(optional("TAX_RATE", "0.15")),
 } as const;
