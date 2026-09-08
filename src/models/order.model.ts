@@ -17,6 +17,8 @@ export interface IOrder {
   number: string;
   /** Token público del pedido; también es el clientTransactionId de PayPhone. */
   clientTransactionId: string;
+  /** Dominio del front donde se hizo la compra: los correos enlazan ahí. */
+  siteUrl: string;
   userId: string | null;
   customer: { name: string; email: string; phone: string; documentId: string };
   shipping: {
@@ -66,6 +68,7 @@ const orderSchema = new Schema<IOrder>(
   {
     number: { type: String, required: true, unique: true, index: true },
     clientTransactionId: { type: String, required: true, unique: true, index: true },
+    siteUrl: { type: String, default: "" },
     userId: { type: String, default: null, index: true },
     customer: {
       name: { type: String, required: true },
