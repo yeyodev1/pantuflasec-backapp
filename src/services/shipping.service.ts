@@ -15,8 +15,9 @@ export interface ShippingMethodSetting {
   label: string;
   /** Texto corto bajo el nombre en el checkout: tiempos, courier, zona. */
   description: string;
+  /** En `distance` el costo sale del tarifario por km (moto); aquí no aplica. */
   cost: number;
-  kind: "pickup" | "delivery";
+  kind: "pickup" | "delivery" | "distance";
   /** Solo retiro: se copia al pedido para correos y seguimiento. */
   address: string;
   city: string;
@@ -30,9 +31,24 @@ const DESCRIPTIONS: Record<string, string> = {
   ec: "Servientrega a todo el país, de 24 a 72 horas.",
 };
 
-export const SHIPPING_DEFAULTS: ShippingMethodSetting[] = SHIPPING_METHODS.map((m) => {
+/** Entrega en moto: el precio lo pone la distancia desde la tienda (tarifario en `config/shop.ts`). */
+const MOTO: ShippingMethodSetting = {
+  key: "moto",
+  label: "Entrega en moto (Guayaquil y alrededores)",
+  description:
+    "Marca tu ubicación y calculamos el envío según la distancia. Hasta 22 km de La Garzota.",
+  cost: 0,
+  kind: "distance",
+  address: "",
+  city: "",
+  enabled: true,
+};
+
+export const SHIPPING_DEFAULTS: ShippingMethodSetting[] = SHIPPING_METHODS.filter(
+  (m) => m.key !== "gye",
+).flatMap((m) => {
   const pickup = PICKUP_POINTS[m.key];
-  return {
+  const base: ShippingMethodSetting = {
     key: m.key,
     label: m.label,
     description: DESCRIPTIONS[m.key] ?? "",
@@ -42,6 +58,8 @@ export const SHIPPING_DEFAULTS: ShippingMethodSetting[] = SHIPPING_METHODS.map((
     city: pickup?.city ?? "",
     enabled: true,
   };
+  // La moto va justo antes de Servientrega: es la opción de la ciudad.
+  return m.key === "ec" ? [MOTO, base] : [base];
 });
 
 function requireDb() {
@@ -78,12 +96,13 @@ export async function setShipping(input: { methods?: unknown }): Promise<Shippin
   const methods = input.methods.map((raw: any, i: number): ShippingMethodSetting => {
     const label = text(raw?.label, 80);
     if (!label) throw new CustomError(`El método ${i + 1} necesita un nombre`, 400);
-    const kind: ShippingMethodSetting["kind"] = raw?.kind === "pickup" ? "pickup" : "delivery";
-    const cost = round2(Number(raw?.cost ?? 0));
+    const kind: ShippingMethodSetting["kind"] =
+      raw?.kind === "pickup" ? "pickup" : raw?.kind === "distance" ? "distance" : "delivery";
+    const cost = kind === "distance" ? 0 : round2(Number(raw?.cost ?? 0));
     if (!Number.isFinite(cost) || cost < 0)
       throw new CustomError(`Precio inválido en "${label}"`, 400);
     // La clave se conserva si ya existía (los pedidos viejos la referencian); si es nueva, sale del nombre.
-    const prefix = kind === "pickup" ? "pickup-" : "envio-";
+    const prefix = kind === "pickup" ? "pickup-" : kind === "distance" ? "moto-" : "envio-";
     let key = text(raw?.key, 80);
     if (!key || (kind === "pickup") !== key.startsWith("pickup"))
       key = `${prefix}${slugify(label)}`;
