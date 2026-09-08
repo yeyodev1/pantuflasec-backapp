@@ -1,6 +1,7 @@
 /**
  * Reglas comerciales de la tienda. Viven en código y no en la base porque
  * cambian con el negocio, no con el día a día; el front las lee por el API.
+ * Lo que sí edita el admin (cuentas bancarias, portada) está en `Setting`.
  */
 /** Puntos de retiro. La dirección se copia al pedido para que salga en correos y seguimiento. */
 export const PICKUP_POINTS: Record<string, { name: string; address: string; city: string }> = {
@@ -35,5 +36,26 @@ export const ORDER_STATUSES = [
 ] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
-export const PAYMENT_STATUSES = ["pending", "paid", "failed", "cancelled"] as const;
+/**
+ * Cómo paga el cliente. Tarjeta la confirma PayPhone; transferencia y efectivo
+ * los aprueba el equipo desde el panel (con comprobante en el caso de la
+ * transferencia). Efectivo solo aplica al retirar en tienda.
+ */
+export const PAYMENT_METHODS = ["payphone", "transfer", "cash"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  payphone: "Tarjeta (PayPhone)",
+  transfer: "Transferencia bancaria",
+  cash: "Efectivo en tienda",
+};
+
+/** `review` = el cliente subió comprobante y el equipo aún no lo revisa. */
+export const PAYMENT_STATUSES = [
+  "pending",
+  "review",
+  "paid",
+  "rejected",
+  "failed",
+  "cancelled",
+] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
