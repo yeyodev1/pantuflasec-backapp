@@ -1,20 +1,11 @@
 import { randomUUID } from "crypto";
 import { env } from "../config/env";
 import { isConnected } from "../config/mongo";
-import {
-  ORDER_STATUSES,
-  OrderStatus,
-  PAYMENT_METHODS,
-  PAYMENT_STATUSES,
-  PaymentMethod,
-  PaymentStatus,
-  SHIPPING_METHODS,
-  isPickup,
-} from "../config/shop";
+import { PAYMENT_METHODS, PaymentMethod, isPickup } from "../config/shop";
 import { CustomError } from "../errors/customError.error";
 import { IOrder, Order, nextOrderNumber } from "../models/order.model";
 import * as payphone from "./payphone.service";
-import { sendOrderCreated, sendOrderLinks, sendOrderStatus } from "./orderEmail.service";
+import { sendOrderCreated, sendOrderLinks } from "./orderEmail.service";
 import { sendCashReserved, sendTransferInstructions } from "./paymentEmail.service";
 import {
   CheckoutInput,
@@ -25,13 +16,13 @@ import {
 } from "./orderInput.service";
 import { markPaid } from "./orderPayment.service";
 import { getPayments } from "./setting.service";
+import { activeShipping } from "./shipping.service";
 import { logEvent } from "./orderEvent.service";
 
 export type { CheckoutInput };
 export { logEvent };
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const PAGE_SIZE = 30;
 
 function requireDb() {
   if (!isConnected()) throw new CustomError("El servidor no tiene base de datos disponible", 503);
@@ -41,9 +32,15 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export async function config() {
   requireDb();
-  const payments = await getPayments();
+  const [payments, shippingMethods] = await Promise.all([getPayments(), activeShipping()]);
   return {
-    shippingMethods: SHIPPING_METHODS,
+    shippingMethods: shippingMethods.map(({ key, label, description, cost, kind }) => ({
+      key,
+      label,
+      description,
+      cost,
+      kind,
+    })),
     taxRate: env.TAX_RATE,
     /** Los precios del catálogo ya traen IVA: el checkout lo muestra, no lo suma. */
     taxIncluded: true,
@@ -104,14 +101,13 @@ async function validatePayment(
 export async function create(input: CheckoutInput, userId: string | null, siteUrl: string) {
   requireDb();
   const customer = validateCustomer(input.customer ?? {});
-  const shipping = validateShipping(input.shipping ?? {});
+  const { cost: shippingCost, ...shipping } = await validateShipping(input.shipping ?? {});
   const billing = validateBilling(input.billing ?? {}, customer);
   const method = await validatePayment(input.payment?.method, shipping.method);
   const items = await buildItems(input.items ?? []);
 
   // Los precios ya incluyen IVA: se desglosa para la factura y PayPhone, no se suma.
   const subtotal = round2(items.reduce((n, i) => n + i.subtotal, 0));
-  const shippingCost = SHIPPING_METHODS.find((m) => m.key === shipping.method)!.cost;
   const tax = round2(subtotal - subtotal / (1 + env.TAX_RATE));
   const total = round2(subtotal + shippingCost);
 
@@ -252,88 +248,4 @@ export async function lookupByEmail(rawEmail: string, siteUrl: string): Promise<
     .limit(10)
     .lean();
   if (orders.length) void sendOrderLinks(email, orders, siteUrl);
-}
-
-// --- Admin ---
-
-export async function list(query: { status?: string; page?: string; q?: string; pay?: string }) {
-  requireDb();
-  const page = Math.max(1, Number(query.page) || 1);
-  const filter: Record<string, unknown> = {};
-  if (query.status && ORDER_STATUSES.includes(query.status as OrderStatus))
-    filter.status = query.status;
-  if (query.pay && PAYMENT_STATUSES.includes(query.pay as PaymentStatus))
-    filter["payment.status"] = query.pay;
-  if (query.q?.trim()) {
-    const rx = new RegExp(query.q.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-    filter.$or = [
-      { number: rx },
-      { "customer.name": rx },
-      { "customer.email": rx },
-      { "customer.phone": rx },
-    ];
-  }
-  const [items, total] = await Promise.all([
-    Order.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * PAGE_SIZE)
-      .limit(PAGE_SIZE)
-      .lean(),
-    Order.countDocuments(filter),
-  ]);
-  return { items, total, page, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)) };
-}
-
-export async function getById(id: string): Promise<IOrder> {
-  requireDb();
-  const order = await Order.findById(id).lean();
-  if (!order) throw new CustomError("Pedido no encontrado", 404);
-  return order;
-}
-
-export async function setStatus(id: string, status: string, by = "equipo"): Promise<IOrder> {
-  requireDb();
-  if (!ORDER_STATUSES.includes(status as OrderStatus)) {
-    throw new CustomError(`Estado inválido. Usa uno de: ${ORDER_STATUSES.join(", ")}`, 400);
-  }
-  const previous = await Order.findById(id).select("status").lean();
-  if (!previous) throw new CustomError("Pedido no encontrado", 404);
-  const order = await Order.findByIdAndUpdate(
-    id,
-    {
-      status,
-      $push: {
-        events: { at: new Date(), kind: "status", detail: `${previous.status} → ${status}`, by },
-      },
-    },
-    { new: true },
-  ).lean();
-  if (!order) throw new CustomError("Pedido no encontrado", 404);
-  if (previous.status !== order.status) {
-    void sendOrderStatus(order).then((sent) => {
-      if (sent)
-        void logEvent(
-          id,
-          "email",
-          `Correo "${status}" enviado a ${order.customer.email}`,
-          "sistema",
-        );
-    });
-  }
-  return order;
-}
-
-/** Resumen para el header del admin: pedidos pagados por atender y comprobantes por revisar. */
-export async function summary() {
-  requireDb();
-  const [paid, preparing, review, today] = await Promise.all([
-    Order.countDocuments({ status: "paid" }),
-    Order.countDocuments({ status: "preparing" }),
-    Order.countDocuments({ "payment.status": "review" }),
-    Order.countDocuments({
-      "payment.status": "paid",
-      createdAt: { $gte: new Date(Date.now() - 86_400_000) },
-    }),
-  ]);
-  return { pending: paid + preparing + review, paid, preparing, review, today };
 }
