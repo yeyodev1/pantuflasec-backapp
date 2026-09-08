@@ -37,6 +37,10 @@ export interface IOrder {
     city: string;
     reference: string;
     notes: string;
+    /** Entrega en moto: lo que pegó o marcó el cliente y la distancia cotizada. */
+    location: string;
+    coords: { lat: number; lng: number } | null;
+    km: number | null;
   };
   items: IOrderItem[];
   subtotal: number;
@@ -110,6 +114,9 @@ const orderSchema = new Schema<IOrder>(
       city: { type: String, default: "" },
       reference: { type: String, default: "" },
       notes: { type: String, default: "" },
+      location: { type: String, default: "" },
+      coords: { type: new Schema({ lat: Number, lng: Number }, { _id: false }), default: null },
+      km: { type: Number, default: null },
     },
     items: { type: [itemSchema], required: true },
     subtotal: { type: Number, required: true },
