@@ -52,6 +52,8 @@ export interface IProduct {
   tags: string[];
   isActive: boolean;
   featured: boolean;
+  /** Sección "Nuevo" de la tienda: lo marca el admin cuando llega mercadería. */
+  newArrival: boolean;
   sortOrder: number;
   createdAt?: Date;
   updatedAt?: Date;
@@ -91,6 +93,7 @@ const productSchema = new Schema<IProduct>(
     tags: { type: [String], default: [] },
     isActive: { type: Boolean, default: true, index: true },
     featured: { type: Boolean, default: false },
+    newArrival: { type: Boolean, default: false, index: true },
     sortOrder: { type: Number, default: 0 },
   },
   // `collection` es nombre reservado en Mongoose; se comprobó que get/set/save
@@ -106,4 +109,5 @@ productSchema.index(
 );
 
 export const Product: Model<IProduct> =
-  (mongoose.models.Product as Model<IProduct>) || mongoose.model<IProduct>("Product", productSchema);
+  (mongoose.models.Product as Model<IProduct>) ||
+  mongoose.model<IProduct>("Product", productSchema);
