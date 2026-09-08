@@ -80,9 +80,20 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
 }
 
 /** PUT /api/orders/admin/:id/status — body: { status } */
-export async function setStatus(req: Request, res: Response, next: NextFunction) {
+export async function setStatus(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const order = await orderService.setStatus(String(req.params.id), String(req.body?.status ?? ""));
+    const order = await orderService.setStatus(String(req.params.id), String(req.body?.status ?? ""), req.user?.email ?? "equipo");
+    res.status(200).json(order);
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** POST /api/orders/admin/:id/events — body: { kind, detail }. Contactos y notas del equipo. */
+export async function addEvent(req: AuthRequest, res: Response, next: NextFunction) {
+  try {
+    const { kind, detail } = req.body ?? {};
+    const order = await orderService.addEvent(String(req.params.id), String(kind ?? ""), String(detail ?? ""), req.user?.email ?? "equipo");
     res.status(200).json(order);
   } catch (error) {
     next(error);
