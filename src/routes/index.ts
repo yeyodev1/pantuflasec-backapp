@@ -6,6 +6,7 @@ import orderRoutes from "./order.routes";
 import uploadRoutes from "./upload.routes";
 import userRoutes from "./user.routes";
 import galleryRoutes from "./gallery.routes";
+import settingRoutes from "./setting.routes";
 
 function routerApi(app: Application) {
   const router = express.Router();
@@ -18,6 +19,7 @@ function routerApi(app: Application) {
   router.use("/uploads", uploadRoutes);
   router.use("/users", userRoutes);
   router.use("/gallery", galleryRoutes);
+  router.use("/settings", settingRoutes);
 }
 
 export default routerApi;
