@@ -71,7 +71,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Env:** solo `src/config/env.ts` lee `process.env`. No lo leas en otro archivo.
 - **Errores:** `throw new CustomError("Mensaje en español", 404)`; `globalErrorHandler` responde `{ message }` y avisa a Slack en 5xx.
-- **Auth:** `authMiddleware` verifica el Bearer y deja `req.user` (`AuthRequest`). Gates de rol van después (`adminMiddleware`).
+- **Auth:** `authMiddleware` verifica el Bearer y deja `req.user` (`AuthRequest`). Gates de rol van
+  después: `adminMiddleware` (solo admin: catálogo, galería, archivos, usuarios) y `staffMiddleware`
+  (admin o staff: pedidos). Roles: `customer`, `staff` (vendedor), `admin`.
 - **Respuestas:** cuerpo desnudo (`res.json(item)`), paginación `{ items, total, page, pages }`, login `{ token, user }`.
 - **Mongo serverless:** `dbConnect()` cachea la promesa; nunca `process.exit` en Vercel.
 
