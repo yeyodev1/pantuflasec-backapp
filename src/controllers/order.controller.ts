@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { AuthRequest } from "../types/AuthRequest";
 import * as orderService from "../services/order.service";
+import * as orderAdmin from "../services/orderAdmin.service";
 import * as orderPayment from "../services/orderPayment.service";
 import { addMessage } from "../services/orderMessage.service";
 import { frontendUrlFor } from "../utils/origin";
@@ -121,7 +122,7 @@ export async function reviewPayment(req: AuthRequest, res: Response, next: NextF
 /** GET /api/orders/admin/summary — { pending, paid, preparing, review, today } */
 export async function summary(_req: Request, res: Response, next: NextFunction) {
   try {
-    res.status(200).json(await orderService.summary());
+    res.status(200).json(await orderAdmin.summary());
   } catch (error) {
     next(error);
   }
@@ -130,7 +131,7 @@ export async function summary(_req: Request, res: Response, next: NextFunction) 
 /** GET /api/orders/admin/all — query: status, pay, q, page */
 export async function listAll(req: Request, res: Response, next: NextFunction) {
   try {
-    res.status(200).json(await orderService.list(req.query as Record<string, string>));
+    res.status(200).json(await orderAdmin.list(req.query as Record<string, string>));
   } catch (error) {
     next(error);
   }
@@ -139,7 +140,7 @@ export async function listAll(req: Request, res: Response, next: NextFunction) {
 /** GET /api/orders/admin/:id */
 export async function getById(req: Request, res: Response, next: NextFunction) {
   try {
-    res.status(200).json(await orderService.getById(String(req.params.id)));
+    res.status(200).json(await orderAdmin.getById(String(req.params.id)));
   } catch (error) {
     next(error);
   }
@@ -148,7 +149,7 @@ export async function getById(req: Request, res: Response, next: NextFunction) {
 /** PUT /api/orders/admin/:id/status — body: { status } */
 export async function setStatus(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const order = await orderService.setStatus(
+    const order = await orderAdmin.setStatus(
       String(req.params.id),
       String(req.body?.status ?? ""),
       req.user?.email ?? "equipo",
