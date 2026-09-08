@@ -48,6 +48,8 @@ export interface IOrder {
     message: string;
   };
   stockIssue: boolean;
+  /** Historial visible en el panel: creación, pago, correos, cambios de estado y contactos. */
+  events: Array<{ at: Date; kind: string; detail: string; by: string }>;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -110,6 +112,20 @@ const orderSchema = new Schema<IOrder>(
       message: { type: String, default: "" },
     },
     stockIssue: { type: Boolean, default: false },
+    events: {
+      type: [
+        new Schema(
+          {
+            at: { type: Date, default: Date.now },
+            kind: { type: String, required: true },
+            detail: { type: String, default: "" },
+            by: { type: String, default: "" },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
   },
   { timestamps: true },
 );
