@@ -1,6 +1,6 @@
 /**
  * Crea o actualiza una cuenta desde la terminal.
- * Uso: pnpm user:create <correo> <contraseña> [admin|customer] [nombre]
+ * Uso: pnpm user:create <correo> <contraseña> [admin|staff|customer] [nombre]
  */
 import "dotenv/config";
 import mongoose from "mongoose";
@@ -17,7 +17,7 @@ async function main() {
   const existing = await User.findOne({ email: email.toLowerCase() }).select("+password");
   if (existing) {
     existing.password = password;
-    existing.accountType = accountType as "admin" | "customer";
+    existing.accountType = accountType as "admin" | "staff" | "customer";
     existing.isActive = true;
     if (nameParts.length) existing.name = nameParts.join(" ");
     await existing.save();
