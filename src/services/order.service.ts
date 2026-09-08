@@ -53,7 +53,7 @@ export function boxParams(order: IOrder) {
   };
 }
 
-export async function create(input: CheckoutInput, userId: string | null) {
+export async function create(input: CheckoutInput, userId: string | null, siteUrl: string) {
   requireDb();
   const customer = validateCustomer(input.customer ?? {});
   const shipping = validateShipping(input.shipping ?? {});
@@ -67,6 +67,7 @@ export async function create(input: CheckoutInput, userId: string | null) {
   const order = await Order.create({
     number: await nextOrderNumber(),
     clientTransactionId: randomUUID(),
+    siteUrl,
     userId,
     customer,
     shipping,
@@ -133,12 +134,12 @@ export async function track(clientTransactionId: string): Promise<IOrder> {
  * Manda por correo los enlaces de los pedidos de ese correo. Responde igual
  * exista o no: el formulario no sirve para descubrir clientes.
  */
-export async function lookupByEmail(rawEmail: string): Promise<void> {
+export async function lookupByEmail(rawEmail: string, siteUrl: string): Promise<void> {
   requireDb();
   const email = String(rawEmail ?? "").trim().toLowerCase();
   if (!EMAIL.test(email)) throw new CustomError("Escribe un correo válido", 400);
   const orders = await Order.find({ "customer.email": email }).sort({ createdAt: -1 }).limit(10).lean();
-  if (orders.length) void sendOrderLinks(email, orders);
+  if (orders.length) void sendOrderLinks(email, orders, siteUrl);
 }
 
 // --- Admin ---
