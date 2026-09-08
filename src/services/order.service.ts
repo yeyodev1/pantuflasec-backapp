@@ -7,7 +7,7 @@ import { IOrder, IOrderItem, Order, nextOrderNumber } from "../models/order.mode
 import { Product } from "../models/product.model";
 import * as productService from "./product.service";
 import * as payphone from "./payphone.service";
-import { sendOrderCreated, sendOrderPaid, sendOrderStatus } from "./orderEmail.service";
+import { sendOrderCreated, sendOrderLinks, sendOrderPaid, sendOrderStatus } from "./orderEmail.service";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PAGE_SIZE = 30;
@@ -127,6 +127,18 @@ export async function track(clientTransactionId: string): Promise<IOrder> {
   const order = await Order.findOne({ clientTransactionId }).lean();
   if (!order) throw new CustomError("Pedido no encontrado", 404);
   return order;
+}
+
+/**
+ * Manda por correo los enlaces de los pedidos de ese correo. Responde igual
+ * exista o no: el formulario no sirve para descubrir clientes.
+ */
+export async function lookupByEmail(rawEmail: string): Promise<void> {
+  requireDb();
+  const email = String(rawEmail ?? "").trim().toLowerCase();
+  if (!EMAIL.test(email)) throw new CustomError("Escribe un correo válido", 400);
+  const orders = await Order.find({ "customer.email": email }).sort({ createdAt: -1 }).limit(10).lean();
+  if (orders.length) void sendOrderLinks(email, orders);
 }
 
 // --- Admin ---
