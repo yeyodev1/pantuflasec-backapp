@@ -62,9 +62,9 @@ export async function sendOrderPaid(order: IOrder): Promise<boolean> {
 
 const STATUS_COPY: Record<string, { subject: string; title: string; text: string }> = {
   preparing: {
-    subject: "Estamos preparando tu pedido",
-    title: "¡Manos a la obra!",
-    text: "Ya estamos armando tu pedido con mucho cuidado. Te avisamos en cuanto salga o esté listo para retirar.",
+    subject: "Tu pedido ya está empacado",
+    title: "¡Empacado y listo!",
+    text: "Armamos tu pedido con mucho cuidado y ya está empacado. Te avisamos en cuanto salga en camino o esté listo para retirar.",
   },
   shipped: {
     subject: "Tu pedido va en camino",
