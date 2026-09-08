@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import * as productService from "../services/product.service";
 
-/** GET /api/products — query: q, category, collection, featured, sort, page, limit */
+/** GET /api/products — query: q, category, collection, featured, newArrival, sort, page, limit */
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const result = await productService.list(req.query as productService.ListQuery);
