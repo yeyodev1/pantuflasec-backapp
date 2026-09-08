@@ -45,6 +45,6 @@ export const env = {
   PAYPHONE_TOKEN: optional("PAYPHONE_TOKEN", ""),
   PAYPHONE_STORE_ID: optional("PAYPHONE_STORE_ID", ""),
   PAYPHONE_RESPONSE_URL: optional("PAYPHONE_RESPONSE_URL", ""),
-  /** IVA que se suma al pagar con tarjeta (los catálogos lo anuncian: 15%). */
+  /** IVA (15%). Los precios del catálogo ya lo incluyen: solo se desglosa, no se suma. */
   TAX_RATE: Number(optional("TAX_RATE", "0.15")),
 } as const;
