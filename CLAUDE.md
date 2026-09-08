@@ -70,9 +70,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   Cada pedido lleva `events[]` (creado, pago, correo enviado o fallido, cambio de estado, contacto
   por WhatsApp/llamada/correo, nota) que alimenta el historial del panel; el equipo anota contactos
   con `POST /orders/admin/:id/events`. La validación del checkout vive en `orderInput.service.ts`.
-  Admin: `/orders/admin/all`, `/orders/admin/:id`, `PUT /orders/admin/:id/status`.
+  Admin (`orderAdmin.service.ts`): `/orders/admin/all`, `/orders/admin/:id`, `PUT /orders/admin/:id/status`.
   Correos de transferencia, efectivo, comprobante y mensajes en `paymentEmail.service.ts`.
-- **config/shop.ts** — métodos de envío, de pago y estados. Cambiar precios de envío ahí.
+- **config/shop.ts** — métodos de pago y estados; los métodos de envío ahí son solo el arranque.
+- **shipping** (`shipping.service.ts`) — métodos de entrega que edita el admin (`Setting` clave
+  `shipping`): retiros (`kind: pickup`, con dirección y ciudad, clave `pickup-…`) y envíos con
+  precio y descripción (clave `envio-…`). `GET/PUT /settings/shipping` admin; el checkout lee los
+  activos por `/orders/config` y `validateShipping` valida contra ellos. Las claves se conservan
+  al editar porque los pedidos viejos las referencian.
 - **settings** — ajustes que edita el admin (`Setting`, un doc por clave, validados en
   `setting.service.ts`): `hero` (portada del home: foto, título, botón; pública en
   `GET /settings/hero`) y `payments` (cuentas bancarias e instrucciones de transferencia y
