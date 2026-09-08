@@ -28,6 +28,23 @@ export const SHIPPING_METHODS = [
 export type ShippingMethod = string;
 export const isPickup = (key: string) => key.startsWith("pickup");
 
+/**
+ * Tarifario de Let's Go Delivery (moto, Guayaquil) más $0,50 de margen que pidió
+ * la clienta: `[kmMáximo, precio]`, gana el primer tramo que alcance la distancia.
+ * Más allá del último tramo no hay entrega en moto (queda Servientrega o retiro).
+ */
+export const DELIVERY_TARIFF: ReadonlyArray<readonly [number, number]> = [
+  [2, 3.0],
+  [4, 3.5],
+  [6, 4.0],
+  [8, 4.5],
+  [11, 5.5],
+  [15, 6.5],
+  [18, 7.5],
+  [22, 8.5],
+];
+export const MAX_DELIVERY_KM = DELIVERY_TARIFF[DELIVERY_TARIFF.length - 1]![0];
+
 export const ORDER_STATUSES = [
   "pending_payment",
   "paid",
