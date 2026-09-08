@@ -1,9 +1,10 @@
 import { env } from "../config/env";
-import { PICKUP_POINTS, SHIPPING_METHODS, ShippingMethod, isPickup } from "../config/shop";
+import { ShippingMethod } from "../config/shop";
 import { CustomError } from "../errors/customError.error";
 import { IOrderItem } from "../models/order.model";
 import { Product } from "../models/product.model";
 import * as productService from "./product.service";
+import { findShipping } from "./shipping.service";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -75,20 +76,22 @@ export function validateBilling(
   return { wanted: true, documentId, name, email, phone };
 }
 
-export function validateShipping(s: NonNullable<CheckoutInput["shipping"]>) {
-  const method = SHIPPING_METHODS.find((m) => m.key === s.method);
+/** El método sale de los que el admin tiene activos; un retiro copia la dirección de la tienda. */
+export async function validateShipping(s: NonNullable<CheckoutInput["shipping"]>) {
+  const method = await findShipping(String(s.method ?? ""));
   if (!method) throw new CustomError("Elige cómo quieres recibir tu pedido", 400);
   const address = String(s.address ?? "").trim();
   const city = String(s.city ?? "").trim();
-  const pickup = isPickup(method.key) ? PICKUP_POINTS[method.key] : null;
+  const pickup = method.kind === "pickup";
   if (!pickup && (address.length < 5 || !city)) {
     throw new CustomError("Escribe la dirección y la ciudad de entrega", 400);
   }
   return {
     method: method.key as ShippingMethod,
     label: method.label,
-    address: pickup ? pickup.address : address,
-    city: pickup ? pickup.city : city,
+    cost: method.cost,
+    address: pickup ? method.address : address,
+    city: pickup ? method.city : city,
     reference: String(s.reference ?? "").trim(),
     notes: String(s.notes ?? "")
       .trim()
