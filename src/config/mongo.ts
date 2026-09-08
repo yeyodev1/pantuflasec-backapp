@@ -25,7 +25,9 @@ export async function dbConnect(): Promise<boolean> {
   if (!promesa) {
     promesa = mongoose.connect(env.DB_URI, {
       // Fallar rápido y reintentar es mejor que dejar la petición colgada.
-      serverSelectionTimeoutMS: 8000,
+      serverSelectionTimeoutMS: 6000,
+      // Menos conexiones por instancia: en serverless hay muchas instancias y Atlas M0 tiene tope.
+      maxPoolSize: 5,
       // Sin buffer, una consulta lanzada antes de tiempo falla en vez de
       // quedarse esperando en silencio.
       bufferCommands: false,
