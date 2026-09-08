@@ -49,6 +49,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   descuenta stock y manda correos. Es idempotente. Hay 5 min para confirmar o PayPhone reversa.
   Público: `/orders/config`, `/orders/track/:token` (token = clientTransactionId, un UUID),
   `POST /orders/lookup` ({ email }) que manda por correo los enlaces de los pedidos (siempre 200).
+  Cada pedido guarda `siteUrl` (origen permitido de la petición, `utils/origin.ts`): los
+  correos enlazan a ese dominio, sea pantuflas.ec, el de pruebas o localhost.
   Correos (`orderEmail.service.ts`): admin al crear pedido, cliente + admin al pagar, cliente en
   cada cambio de estado (preparing, shipped, delivered, cancelled). Plantilla con logo en `email.service.ts`.
   `GET /orders/admin/summary` da el contador de pedidos por atender para el header.
