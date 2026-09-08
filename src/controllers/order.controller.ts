@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { AuthRequest } from "../types/AuthRequest";
 import * as orderService from "../services/order.service";
+import { frontendUrlFor } from "../utils/origin";
 
 /** GET /api/orders/config — métodos de envío, IVA y credenciales públicas de la cajita. */
 export function config(_req: Request, res: Response, next: NextFunction) {
@@ -14,7 +15,7 @@ export function config(_req: Request, res: Response, next: NextFunction) {
 /** POST /api/orders — body: { customer, shipping, items }. Público (con o sin sesión). */
 export async function create(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const result = await orderService.create(req.body ?? {}, req.user?.userId ?? null);
+    const result = await orderService.create(req.body ?? {}, req.user?.userId ?? null, frontendUrlFor(req));
     res.status(201).json(result);
   } catch (error) {
     next(error);
@@ -35,7 +36,7 @@ export async function confirm(req: Request, res: Response, next: NextFunction) {
 /** POST /api/orders/lookup — body: { email }. Siempre 200. */
 export async function lookup(req: Request, res: Response, next: NextFunction) {
   try {
-    await orderService.lookupByEmail(String(req.body?.email ?? ""));
+    await orderService.lookupByEmail(String(req.body?.email ?? ""), frontendUrlFor(req));
     res.status(200).json({ ok: true });
   } catch (error) {
     next(error);
