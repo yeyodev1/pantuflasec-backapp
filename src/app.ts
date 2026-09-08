@@ -23,7 +23,7 @@ const allowedPatterns: RegExp[] = [
   /^https:\/\/[a-z0-9-]+\.bakano\.ec$/i,
 ];
 
-function isOriginAllowed(origin: string): boolean {
+export function isOriginAllowed(origin: string): boolean {
   if (whitelist.includes(origin)) return true;
   return allowedPatterns.some((p) => p.test(origin));
 }
