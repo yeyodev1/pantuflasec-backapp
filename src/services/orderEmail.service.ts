@@ -52,6 +52,7 @@ export async function sendOrderPaid(order: IOrder): Promise<void> {
        ${itemsTable(order)}
        <p><strong>Entrega:</strong> ${address}</p>
        ${order.shipping.notes ? `<p><strong>Notas:</strong> ${order.shipping.notes}</p>` : ""}
+       ${order.billing?.wanted ? `<p><strong>Factura:</strong> ${order.billing.name} · ${order.billing.documentId} · ${order.billing.email}${order.billing.phone ? ` · ${order.billing.phone}` : ""}</p>` : "<p>Sin factura.</p>"}
        ${order.stockIssue ? `<p style="color:#c2554f"><strong>Atención:</strong> no se pudo descontar stock de algún ítem. Revisar inventario.</p>` : ""}
        <p>PayPhone: ${order.payment.authorizationCode} · ${order.payment.cardBrand}</p>`,
     ),
