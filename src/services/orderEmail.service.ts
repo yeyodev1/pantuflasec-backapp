@@ -15,6 +15,14 @@ function paymentLine(order: IOrder): string {
   return label;
 }
 
+/** Entrega en moto: el punto exacto para el motorizado, con los km cotizados. */
+export function mapsLink(order: IOrder): string {
+  const c = order.shipping.coords;
+  if (!c) return "";
+  const km = order.shipping.km != null ? ` · ${order.shipping.km} km` : "";
+  return ` · <a href="https://www.google.com/maps?q=${c.lat},${c.lng}">Ver en Google Maps</a>${km}`;
+}
+
 export function itemsTable(order: IOrder): string {
   const rows = order.items
     .map(
@@ -36,7 +44,7 @@ export async function sendOrderPaid(order: IOrder): Promise<boolean> {
   const link = `${base(order)}/pedido/${order.clientTransactionId}`;
   const address = order.shipping.method.startsWith("pickup")
     ? `${order.shipping.label}: ${order.shipping.address}, ${order.shipping.city}.`
-    : `${order.shipping.address}, ${order.shipping.city}${order.shipping.reference ? ` (${order.shipping.reference})` : ""}`;
+    : `${order.shipping.address}, ${order.shipping.city}${order.shipping.reference ? ` (${order.shipping.reference})` : ""}${mapsLink(order)}`;
 
   const sent = await sendEmail(
     order.customer.email,
