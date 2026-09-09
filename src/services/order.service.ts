@@ -1,7 +1,13 @@
 import { randomUUID } from "crypto";
 import { env } from "../config/env";
 import { isConnected } from "../config/mongo";
-import { PAYMENT_METHODS, PaymentMethod, isPickup } from "../config/shop";
+import {
+  CARD_FEE_RATE,
+  PAYMENT_METHODS,
+  PaymentMethod,
+  cardFeeFor,
+  isPickup,
+} from "../config/shop";
 import { CustomError } from "../errors/customError.error";
 import { IOrder, Order, nextOrderNumber } from "../models/order.model";
 import * as payphone from "./payphone.service";
@@ -45,6 +51,8 @@ export async function config() {
     taxRate: env.TAX_RATE,
     /** Los precios del catálogo ya traen IVA: el checkout lo muestra, no lo suma. */
     taxIncluded: true,
+    /** Recargo solo con tarjeta: el front lo muestra con la misma fórmula (gross-up). */
+    cardFeeRate: CARD_FEE_RATE,
     /** Radio de la entrega en moto y punto de salida, para el mapa del checkout. */
     delivery: { maxKm: MAX_DELIVERY_KM, origin: { lat: env.STORE_LAT, lng: env.STORE_LNG } },
     payphone: payphone.isPayphoneConfigured() ? payphone.boxCredentials() : null,
@@ -64,7 +72,7 @@ export function boxParams(order: IOrder) {
     clientTransactionId: order.clientTransactionId,
     amount: payphone.toCents(order.total),
     amountWithTax: payphone.toCents(round2(order.subtotal - order.tax)),
-    amountWithoutTax: payphone.toCents(order.shippingCost),
+    amountWithoutTax: payphone.toCents(round2(order.shippingCost + (order.cardFee ?? 0))),
     tax: payphone.toCents(order.tax),
     service: 0,
     tip: 0,
@@ -112,7 +120,9 @@ export async function create(input: CheckoutInput, userId: string | null, siteUr
   // Los precios ya incluyen IVA: se desglosa para la factura y PayPhone, no se suma.
   const subtotal = round2(items.reduce((n, i) => n + i.subtotal, 0));
   const tax = round2(subtotal - subtotal / (1 + env.TAX_RATE));
-  const total = round2(subtotal + shippingCost);
+  // La comisión de PayPhone la paga solo quien elige tarjeta; el precio de lista es el de tienda.
+  const cardFee = method === "payphone" ? cardFeeFor(subtotal + shippingCost) : 0;
+  const total = round2(subtotal + shippingCost + cardFee);
 
   const order = await Order.create({
     number: await nextOrderNumber(),
@@ -128,8 +138,7 @@ export async function create(input: CheckoutInput, userId: string | null, siteUr
     taxRate: env.TAX_RATE,
     tax,
     taxIncluded: true,
-    /** Radio de la entrega en moto y punto de salida, para el mapa del checkout. */
-    delivery: { maxKm: MAX_DELIVERY_KM, origin: { lat: env.STORE_LAT, lng: env.STORE_LNG } },
+    cardFee,
     total,
     payment: { method },
   });
