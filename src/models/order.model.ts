@@ -49,6 +49,8 @@ export interface IOrder {
   /** Con `taxIncluded` el IVA es informativo: ya viene dentro del subtotal. */
   tax: number;
   taxIncluded: boolean;
+  /** Recargo por pagar con tarjeta (comisión de PayPhone). 0 con transferencia o efectivo. */
+  cardFee: number;
   total: number;
   status: OrderStatus;
   payment: {
@@ -124,6 +126,7 @@ const orderSchema = new Schema<IOrder>(
     taxRate: { type: Number, default: 0 },
     tax: { type: Number, default: 0 },
     taxIncluded: { type: Boolean, default: false },
+    cardFee: { type: Number, default: 0 },
     total: { type: Number, required: true },
     status: { type: String, enum: ORDER_STATUSES, default: "pending_payment", index: true },
     payment: {
