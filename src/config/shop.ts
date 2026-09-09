@@ -68,6 +68,15 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: "Efectivo en tienda",
 };
 
+/**
+ * Comisión de PayPhone (5 % + IVA sobre la comisión). Se cobra como recargo
+ * solo al cliente que paga con tarjeta, con gross-up para que la tienda reciba
+ * el precio de lista completo: recargo = base / (1 - tasa) - base.
+ */
+export const CARD_FEE_RATE = 0.05 * 1.15;
+export const cardFeeFor = (base: number) =>
+  Math.round((base / (1 - CARD_FEE_RATE) - base) * 100) / 100;
+
 /** `review` = el cliente subió comprobante y el equipo aún no lo revisa. */
 export const PAYMENT_STATUSES = [
   "pending",
