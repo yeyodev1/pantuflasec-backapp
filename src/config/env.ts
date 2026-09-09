@@ -45,6 +45,9 @@ export const env = {
   PAYPHONE_TOKEN: optional("PAYPHONE_TOKEN", ""),
   PAYPHONE_STORE_ID: optional("PAYPHONE_STORE_ID", ""),
   PAYPHONE_RESPONSE_URL: optional("PAYPHONE_RESPONSE_URL", ""),
+  /** Brandfetch: client ID (Brand Search, gratis) y API key (Brand API) para logos de bancos. */
+  BRANDFETCH_CLIENT_ID: optional("BRANDFETCH_CLIENT_ID", ""),
+  BRANDFETCH_API_KEY: optional("BRANDFETCH_API_KEY", ""),
   /** Google Routes/Geocoding para la entrega en moto por distancia. Sin key cae a Valhalla/OSRM (gratis). */
   GOOGLE_MAPS_API_KEY: optional("GOOGLE_MAPS_API_KEY", ""),
   /** Google calcula la ruta óptima, algo más corta que lo que rueda el motorizado: se rellena. */
