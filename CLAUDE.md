@@ -10,10 +10,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Format:** `pnpm format` (Prettier)
 - **Seed admin:** `pnpm seed:admin`
 - **Importar catálogo:** `pnpm seed:catalog <catalog.json> [--reset]` (upsert por slug; conserva stock editado)
-- **Comisión PayPhone en precios:** `pnpm prices:adjust <respaldo.json> [--apply]` sube precio,
-  variantes y precio tachado a `P / 0,9425` redondeado a $0,05 y marca `feeIncludedAt`; no repite en
-  productos ya marcados. Se corrió el 2026-09-08 sobre 559 productos. Los precios nuevos que cargue el
-  admin ya deben traer la comisión (no hay recargo por tarjeta en el checkout).
+- **Comisión PayPhone = recargo solo con tarjeta.** Los precios del catálogo son los de tienda.
+  `create()` suma `cardFee = cardFeeFor(subtotal + envío)` (`config/shop.ts`, gross-up de 5,75 %)
+  únicamente si `payment.method === "payphone"`; transferencia y efectivo pagan el precio de lista.
+  `pnpm prices:adjust <respaldo.json> [--apply|--revert]` existe porque el 2026-09-08 se subieron
+  todos los precios y se revirtieron el mismo día (la clienta no quiso precios distintos a la tienda).
 - **No hay linter ni tests.** `pnpm build` es la única verificación.
 
 ## Tech Stack
