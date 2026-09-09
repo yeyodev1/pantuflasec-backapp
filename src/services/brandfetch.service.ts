@@ -58,7 +58,7 @@ async function brandApiLogo(domain: string): Promise<string | null> {
         formats?: Array<{ src?: string; format?: string }>;
       }>;
     };
-    // Prioridad: logo completo sobre fondo claro, en PNG o SVG.
+    // Prioridad: logo completo y de tema "dark" (el logo oscuro, que va sobre nuestro fondo claro), PNG o SVG.
     const ranked = [...(data.logos ?? [])].sort((a, b) => score(b) - score(a));
     for (const logo of ranked) {
       const src =
@@ -73,7 +73,7 @@ async function brandApiLogo(domain: string): Promise<string | null> {
 }
 
 function score(l: { type?: string; theme?: string }): number {
-  return (l.type === "logo" ? 2 : l.type === "icon" ? 1 : 0) + (l.theme === "light" ? 0.5 : 0);
+  return (l.type === "logo" ? 2 : l.type === "icon" ? 1 : 0) + (l.theme === "dark" ? 0.5 : 0);
 }
 
 /** Copia el logo elegido a Cloudinary. Devuelve la URL que se guarda en la cuenta. */
