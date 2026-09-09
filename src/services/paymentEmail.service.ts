@@ -17,7 +17,7 @@ export function accountsTable(accounts: PaymentSettings["transfer"]["accounts"])
       (
         a,
       ) => `<div style="border:1px solid #efe6c9;border-radius:12px;padding:12px 16px;margin:10px 0">
-        <strong>${a.bank}</strong>${a.type ? ` · ${a.type}` : ""}<br>
+        ${a.showLogo && a.logo?.url ? `<img src="${a.logo.url}" alt="" width="36" height="36" style="vertical-align:middle;border-radius:8px;margin-right:8px">` : ""}<strong>${a.bank}</strong>${a.type ? ` · ${a.type}` : ""}<br>
         <span style="font-size:18px;letter-spacing:0.04em">${a.number}</span><br>
         <span style="color:#4a5472">${a.holder}${a.documentId ? ` · ${a.documentId}` : ""}${a.email ? ` · ${a.email}` : ""}</span>
       </div>`,
