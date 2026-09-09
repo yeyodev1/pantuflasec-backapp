@@ -8,9 +8,11 @@
  * dos veces. Guarda un respaldo JSON con los precios anteriores.
  *
  * Uso: pnpm prices:adjust <respaldo.json> [--apply]   (sin --apply solo muestra)
+ *      pnpm prices:adjust <respaldo.json> --revert      (devuelve los precios del respaldo y
+ *      limpia `feeIncludedAt`; salta los productos cuyo precio cambió después del ajuste)
  */
 import "dotenv/config";
-import { writeFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import mongoose from "mongoose";
 import { env } from "../config/env";
 import { Product } from "../models/product.model";
@@ -22,7 +24,44 @@ const FACTOR = 1 / (1 - PAYPHONE_FEE);
 export function withFee(price: number): number {
   const cents = Math.round(price * 100);
   const raised = cents * FACTOR;
-  return Math.ceil(raised / 5 - 1e-9) * 5 / 100;
+  return (Math.ceil(raised / 5 - 1e-9) * 5) / 100;
+}
+
+interface BackupRow {
+  _id: string;
+  slug: string;
+  price: number;
+  compareAtPrice: number | null;
+  variants: Array<{ _id: string; label: string; price: number | null }>;
+}
+
+/** Vuelve a los precios del respaldo. Solo toca lo que sigue igual que dejó el ajuste. */
+async function revert(backupPath: string) {
+  const rows = JSON.parse(readFileSync(backupPath, "utf8")) as BackupRow[];
+  let restored = 0;
+  const skipped: string[] = [];
+  for (const row of rows) {
+    const p = await Product.findById(row._id);
+    if (!p || !p.feeIncludedAt) continue;
+    if (p.price !== withFee(row.price)) {
+      skipped.push(`${p.slug} (ahora ${p.price.toFixed(2)}, respaldo ${row.price.toFixed(2)})`);
+      continue;
+    }
+    p.price = row.price;
+    p.compareAtPrice = row.compareAtPrice;
+    for (const v of p.variants) {
+      const saved = row.variants.find((x) => x._id === String(v._id));
+      if (saved) v.price = saved.price;
+    }
+    p.feeIncludedAt = null;
+    await p.save();
+    restored += 1;
+  }
+  console.log(`✔ Restaurados ${restored} productos.`);
+  if (skipped.length)
+    console.log(
+      `Saltados (editados después del ajuste, revisar a mano):\n  ${skipped.join("\n  ")}`,
+    );
 }
 
 async function main() {
@@ -33,6 +72,11 @@ async function main() {
     process.exit(1);
   }
   await mongoose.connect(env.DB_URI);
+  if (flag === "--revert") {
+    await revert(backupPath);
+    await mongoose.disconnect();
+    return;
+  }
   const products = await Product.find({ feeIncludedAt: null });
   const backup: unknown[] = [];
   let changed = 0;
@@ -47,14 +91,18 @@ async function main() {
     const before = p.price;
     p.price = withFee(p.price);
     if (p.compareAtPrice) p.compareAtPrice = withFee(p.compareAtPrice);
-    for (const v of p.variants) if (v.price !== null && v.price !== undefined) v.price = withFee(v.price);
+    for (const v of p.variants)
+      if (v.price !== null && v.price !== undefined) v.price = withFee(v.price);
     p.feeIncludedAt = new Date();
     changed += 1;
-    if (changed <= 8 || !apply) console.log(`${p.slug}: ${before.toFixed(2)} → ${p.price.toFixed(2)}`);
+    if (changed <= 8 || !apply)
+      console.log(`${p.slug}: ${before.toFixed(2)} → ${p.price.toFixed(2)}`);
     if (apply) await p.save();
   }
   writeFileSync(backupPath, JSON.stringify(backup, null, 2));
-  console.log(`${apply ? "✔ Actualizados" : "Se actualizarían"} ${changed} productos (de ${products.length} sin comisión). Respaldo: ${backupPath}`);
+  console.log(
+    `${apply ? "✔ Actualizados" : "Se actualizarían"} ${changed} productos (de ${products.length} sin comisión). Respaldo: ${backupPath}`,
+  );
   await mongoose.disconnect();
 }
 
