@@ -86,6 +86,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   Rutea con Google Routes si hay `GOOGLE_MAPS_API_KEY` (padding `GOOGLE_KM_FACTOR`) y si no con
   Valhalla y OSRM, gratis. El método de envío `kind: distance` usa esa cotización en
   `validateShipping` (nunca el precio del navegador) y guarda `shipping.location/coords/km`.
+- **brandfetch** (`brandfetch.service.ts`) — logos de bancos para las cuentas de transferencia:
+  `GET /settings/bank-logo/search?q=` (Brand Search API, `BRANDFETCH_CLIENT_ID`, gratis) devuelve
+  candidatos con icono; `POST /settings/bank-logo/import` copia el elegido a Cloudinary
+  (`pantuflasec/bancos`; con `BRANDFETCH_API_KEY` pide antes el logo completo a la Brand API).
+  Cada cuenta guarda `logo` y `showLogo`; nada de logos en código.
 - **shipping** (`shipping.service.ts`) — métodos de entrega que edita el admin (`Setting` clave
   `shipping`): retiros (`kind: pickup`, con dirección y ciudad, clave `pickup-…`) y envíos con
   precio y descripción (clave `envio-…`) y moto por distancia (`kind: distance`, clave `moto-…`). `GET/PUT /settings/shipping` admin; el checkout lee los
