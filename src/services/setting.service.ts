@@ -70,6 +70,9 @@ export interface BankAccount {
   holder: string;
   documentId: string;
   email: string;
+  /** Logo del banco (Cloudinary). El admin decide si se muestra. */
+  logo: { url: string; publicId: string };
+  showLogo: boolean;
 }
 
 export interface PaymentSettings {
@@ -112,6 +115,11 @@ function cleanAccounts(raw: unknown): BankAccount[] {
       holder: text(a?.holder, 80),
       documentId: text(a?.documentId, 20),
       email: text(a?.email, 80),
+      logo: {
+        url: /^https?:\/\//.test(String(a?.logo?.url ?? "")) ? text(a?.logo?.url, 500) : "",
+        publicId: text(a?.logo?.publicId, 200),
+      },
+      showLogo: a?.showLogo !== false,
     }))
     .filter((a) => a.bank || a.number);
 }
