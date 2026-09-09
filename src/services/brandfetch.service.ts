@@ -40,7 +40,13 @@ export async function searchBrands(rawQuery: string): Promise<BrandCandidate[]> 
     .map((b) => ({ name: b.name || b.domain!, domain: b.domain!, icon: b.icon! }));
 }
 
-/** Con API key, el logo "de verdad" (no el favicon) del dominio elegido; si no hay, null. */
+/**
+ * Con API key, el mejor logo del dominio para pintar sobre fondo claro.
+ * Brandfetch llama "light" a los logos blancos (para fondos oscuros): esos
+ * nunca sirven aquí. Se prefiere el logo completo oscuro y con tamaño útil; si
+ * no lo hay, el ícono cuadrado oscuro (jpeg con su fondo). Si nada aplica, null
+ * y se usa el icono de la búsqueda.
+ */
 async function brandApiLogo(domain: string): Promise<string | null> {
   if (!env.BRANDFETCH_API_KEY) return null;
   try {
@@ -55,25 +61,26 @@ async function brandApiLogo(domain: string): Promise<string | null> {
       logos?: Array<{
         type?: string;
         theme?: string;
-        formats?: Array<{ src?: string; format?: string }>;
+        formats?: Array<{ src?: string; format?: string; width?: number }>;
       }>;
     };
-    // Prioridad: logo completo y de tema "dark" (el logo oscuro, que va sobre nuestro fondo claro), PNG o SVG.
-    const ranked = [...(data.logos ?? [])].sort((a, b) => score(b) - score(a));
-    for (const logo of ranked) {
-      const src =
-        logo.formats?.find((f) => f.format === "png")?.src ??
-        logo.formats?.find((f) => f.format === "svg")?.src;
-      if (src) return src;
+    const candidates: Array<{ src: string; score: number }> = [];
+    for (const logo of data.logos ?? []) {
+      if (logo.theme !== "dark") continue;
+      for (const f of logo.formats ?? []) {
+        if (!f.src || !["png", "svg", "jpeg", "jpg"].includes(f.format ?? "")) continue;
+        const wide = (f.width ?? 0) >= 100;
+        const score =
+          (logo.type === "logo" ? (wide ? 4 : 1) : logo.type === "icon" ? 3 : 0) +
+          (f.format === "png" ? 0.2 : 0);
+        candidates.push({ src: f.src, score });
+      }
     }
-    return null;
+    candidates.sort((a, b) => b.score - a.score);
+    return candidates[0]?.src ?? null;
   } catch {
     return null;
   }
-}
-
-function score(l: { type?: string; theme?: string }): number {
-  return (l.type === "logo" ? 2 : l.type === "icon" ? 1 : 0) + (l.theme === "dark" ? 0.5 : 0);
 }
 
 /** Copia el logo elegido a Cloudinary. Devuelve la URL que se guarda en la cuenta. */
