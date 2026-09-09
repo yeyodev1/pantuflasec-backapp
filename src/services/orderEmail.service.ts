@@ -35,6 +35,7 @@ export function itemsTable(order: IOrder): string {
     ${rows}
     <tr><td style="padding:6px 0;color:#71717a">Envío · ${order.shipping.label}</td><td align="right">${money(order.shippingCost)}</td></tr>
     <tr><td style="padding:6px 0;color:#71717a">${order.taxIncluded ? "IVA incluido en el precio" : "IVA"}</td><td align="right" style="color:#71717a">${money(order.tax)}</td></tr>
+    ${order.cardFee ? `<tr><td style="padding:6px 0;color:#71717a">Recargo por pago con tarjeta</td><td align="right">${money(order.cardFee)}</td></tr>` : ""}
     <tr><td style="padding:10px 0;font-weight:bold">Total</td><td align="right" style="font-weight:bold">${money(order.total)}</td></tr>
   </table>`;
 }
