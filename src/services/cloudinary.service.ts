@@ -31,7 +31,11 @@ export function uploadBuffer(
   ensureConfig();
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      { folder, resource_type: "image", transformation: [{ quality: "auto", fetch_format: "auto" }] },
+      {
+        folder,
+        resource_type: "image",
+        transformation: [{ quality: "auto", fetch_format: "auto" }],
+      },
       (error, result?: UploadApiResponse) => {
         if (error || !result) return reject(error || new Error("Cloudinary sin respuesta"));
         resolve({ url: result.secure_url, publicId: result.public_id });
@@ -41,16 +45,31 @@ export function uploadBuffer(
   });
 }
 
-/** Sube un data URI base64 o una URL remota. */
+/**
+ * Sube un data URI base64 o una URL remota. `background` (hex sin #) rellena la
+ * transparencia con ese color y deja aire alrededor: sirve para logos blancos.
+ */
 export async function uploadImage(
   source: string,
   folder = DEFAULT_FOLDER,
+  background?: string,
 ): Promise<{ url: string; publicId: string }> {
   ensureConfig();
   const result = await cloudinary.uploader.upload(source, {
     folder,
     resource_type: "image",
-    transformation: [{ quality: "auto", fetch_format: "auto" }],
+    transformation: background
+      ? [
+          {
+            background: `rgb:${background}`,
+            crop: "lpad",
+            width: "iw_add_80",
+            height: "ih_add_80",
+            flags: "relative",
+          },
+          { quality: "auto", fetch_format: "auto" },
+        ]
+      : [{ quality: "auto", fetch_format: "auto" }],
   });
   return { url: result.secure_url, publicId: result.public_id };
 }
