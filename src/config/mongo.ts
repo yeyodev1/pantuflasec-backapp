@@ -2,48 +2,60 @@ import mongoose from "mongoose";
 import { env } from "./env";
 
 /**
- * Conexión a Mongo pensada para serverless.
+ * Conexión a Mongo pensada para serverless (Vercel, instancias que se congelan
+ * entre peticiones y despiertan con los heartbeats vencidos).
  *
- * Se guarda la *promesa* de conexión a nivel de módulo: las invocaciones que
- * reusan la instancia esperan la misma promesa en vez de abrir otra conexión
- * (Atlas tiene un tope) y ninguna consulta corre antes de tiempo.
+ * Reglas aprendidas el 2026-09-10, cuando la tienda estuvo caída dos veces:
  *
- * Una conexión fallida no se cachea: si se guardara, la instancia quedaría
- * inservible hasta que Vercel la recicle.
+ * 1. Si Mongoose está en "disconnected" pero el MongoClient sigue vivo, NO se
+ *    llama a `mongoose.connect`: Mongoose crearía otro cliente sin cerrar el
+ *    anterior y cada reconexión suma ~10 conexiones por instancia. Así se
+ *    llenó el tope de 500 del M0 de Atlas.
+ * 2. Ese estado casi siempre es transitorio (instancia recién despertada o
+ *    elección de primario en Atlas): el driver reconecta solo en menos de un
+ *    segundo. Primero se espera; solo si no vuelve se reemplaza el cliente.
+ * 3. Nunca `close(true)`: el cierre forzado deja `$wasForceClosed` en la
+ *    conexión y desde entonces toda consulta de esa instancia falla con
+ *    "Connection was force closed" hasta que Vercel la recicle.
+ * 4. Una sola reconexión a la vez: las peticiones concurrentes de la misma
+ *    instancia comparten la promesa en vez de pisarse.
  */
 
-let promesa: Promise<typeof mongoose> | null = null;
+const RECOVERY_MS = 4000;
+let inflight: Promise<boolean> | null = null;
 
 /** 1 = conectado. */
 export function isConnected(): boolean {
   return mongoose.connection.readyState === 1;
 }
 
-/**
- * Suelta el cliente anterior antes de reconectar.
- *
- * Cuando Atlas pierde el primario un momento, Mongoose pasa a "disconnected"
- * pero el MongoClient sigue vivo con su pool y sus monitores. Si se llama a
- * `mongoose.connect` en ese estado, Mongoose crea un cliente NUEVO sin cerrar
- * el viejo: cada reconexión sumaba ~10 conexiones por instancia y el
- * 2026-09-10 el M0 (tope 500) se llenó y rechazó a todo el mundo.
- */
+async function waitForRecovery(ms: number): Promise<boolean> {
+  const deadline = Date.now() + ms;
+  while (!isConnected() && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return isConnected();
+}
+
 async function releaseStaleClient(): Promise<void> {
-  if (!mongoose.connection.getClient()) return;
   try {
-    await mongoose.connection.close(true);
+    await mongoose.connection.close();
   } catch (error) {
     console.warn("[mongo] no se pudo cerrar el cliente anterior:", error);
   }
 }
 
-export async function dbConnect(): Promise<boolean> {
-  if (isConnected()) return true;
+async function connectOnce(): Promise<boolean> {
+  const hasClient = Boolean(mongoose.connection.getClient());
 
-  // 2 = conectando: se espera esa misma promesa. Cualquier otro estado reconecta.
-  if (!promesa || mongoose.connection.readyState !== 2) {
+  if (hasClient) {
+    if (await waitForRecovery(RECOVERY_MS)) return true;
+    console.warn("[mongo] el driver no recuperó la conexión: se reemplaza el cliente");
     await releaseStaleClient();
-    promesa = mongoose.connect(env.DB_URI, {
+  }
+
+  try {
+    await mongoose.connect(env.DB_URI, {
       // Fallar rápido y reintentar es mejor que dejar la petición colgada
       // (el front corta a los 15 s: dos intentos de 5 s caben ahí).
       serverSelectionTimeoutMS: 5000,
@@ -55,16 +67,21 @@ export async function dbConnect(): Promise<boolean> {
       // quedarse esperando en silencio.
       bufferCommands: false,
     });
-  }
-
-  try {
-    await promesa;
     console.log("Connected to MongoDB");
     return true;
   } catch (error) {
-    promesa = null;
     console.error("MongoDB connection error:", error);
     if (!env.IS_VERCEL) process.exit(1);
     return false;
   }
+}
+
+export async function dbConnect(): Promise<boolean> {
+  if (isConnected()) return true;
+  if (!inflight) {
+    inflight = connectOnce().finally(() => {
+      inflight = null;
+    });
+  }
+  return inflight;
 }
