@@ -120,12 +120,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   después: `adminMiddleware` (solo admin: catálogo, galería, archivos, usuarios) y `staffMiddleware`
   (admin o staff: pedidos). Roles: `customer`, `staff` (vendedor), `admin`.
 - **Respuestas:** cuerpo desnudo (`res.json(item)`), paginación `{ items, total, page, pages }`, login `{ token, user }`.
-- **Mongo serverless:** `dbConnect()` cachea la promesa mientras conecta y, si Mongoose quedó
-  en "disconnected" con un cliente vivo, **cierra ese cliente antes de reconectar**: si no,
-  `mongoose.connect` crea otro MongoClient sin soltar el anterior y cada reconexión suma ~10
-  conexiones por instancia (el 2026-09-10 el M0, tope 500, se llenó y la tienda dio 503 media
-  hora). `api/index.ts` reintenta dos veces (5 s cada una) para caber en los 15 s del front.
-  Nunca `process.exit` en Vercel.
+- **Mongo serverless:** `dbConnect()` serializa la reconexión (una promesa compartida). Si
+  Mongoose quedó en "disconnected" con un cliente vivo (instancia recién despertada, elección en
+  Atlas) **espera hasta 4 s a que el driver se recupere solo**; solo si no vuelve cierra ese cliente
+  (`close()`, nunca `close(true)`: el cierre forzado deja `$wasForceClosed` y toda consulta de la
+  instancia falla con "Connection was force closed") y recién ahí llama a `mongoose.connect`.
+  Llamar a `connect` con un cliente vivo crea otro sin soltar el anterior: así se llenó el tope
+  de 500 conexiones del M0 el 2026-09-10 y la tienda dio 503 media hora. `api/index.ts` reintenta
+  dos veces (5 s cada una) para caber en los 15 s del front y siembra el admin una vez por
+  instancia. Los errores de red/driver salen como 503 en español desde `globalErrorHandler`.
+  `GET /health` devuelve `version` (commit desplegado). Nunca `process.exit` en Vercel.
 
 ## Convenciones
 
