@@ -19,23 +19,38 @@ export function isConnected(): boolean {
   return mongoose.connection.readyState === 1;
 }
 
-// Si Atlas o Vercel cierran la conexión en reposo, la promesa vieja (ya
-// resuelta) no sirve: se descarta para que el próximo dbConnect reconecte de
-// verdad en vez de devolver true con la conexión caída.
-mongoose.connection.on("disconnected", () => {
-  promesa = null;
-});
+/**
+ * Suelta el cliente anterior antes de reconectar.
+ *
+ * Cuando Atlas pierde el primario un momento, Mongoose pasa a "disconnected"
+ * pero el MongoClient sigue vivo con su pool y sus monitores. Si se llama a
+ * `mongoose.connect` en ese estado, Mongoose crea un cliente NUEVO sin cerrar
+ * el viejo: cada reconexión sumaba ~10 conexiones por instancia y el
+ * 2026-09-10 el M0 (tope 500) se llenó y rechazó a todo el mundo.
+ */
+async function releaseStaleClient(): Promise<void> {
+  if (!mongoose.connection.getClient()) return;
+  try {
+    await mongoose.connection.close(true);
+  } catch (error) {
+    console.warn("[mongo] no se pudo cerrar el cliente anterior:", error);
+  }
+}
 
 export async function dbConnect(): Promise<boolean> {
   if (isConnected()) return true;
 
   // 2 = conectando: se espera esa misma promesa. Cualquier otro estado reconecta.
   if (!promesa || mongoose.connection.readyState !== 2) {
+    await releaseStaleClient();
     promesa = mongoose.connect(env.DB_URI, {
-      // Fallar rápido y reintentar es mejor que dejar la petición colgada.
-      serverSelectionTimeoutMS: 6000,
+      // Fallar rápido y reintentar es mejor que dejar la petición colgada
+      // (el front corta a los 15 s: dos intentos de 5 s caben ahí).
+      serverSelectionTimeoutMS: 5000,
       // Menos conexiones por instancia: en serverless hay muchas instancias y Atlas M0 tiene tope.
       maxPoolSize: 5,
+      // Un socket ocioso se devuelve a Atlas en vez de quedarse contando contra el tope.
+      maxIdleTimeMS: 60000,
       // Sin buffer, una consulta lanzada antes de tiempo falla en vez de
       // quedarse esperando en silencio.
       bufferCommands: false,
