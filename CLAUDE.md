@@ -120,10 +120,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   después: `adminMiddleware` (solo admin: catálogo, galería, archivos, usuarios) y `staffMiddleware`
   (admin o staff: pedidos). Roles: `customer`, `staff` (vendedor), `admin`.
 - **Respuestas:** cuerpo desnudo (`res.json(item)`), paginación `{ items, total, page, pages }`, login `{ token, user }`.
-- **Mongo serverless:** `dbConnect()` cachea la promesa mientras conecta y la descarta al
-  desconectarse (si no, tras un reposo devolvía "conectado" con la conexión caída y todo
-  respondía 503). `api/index.ts` reintenta la conexión tres veces en arranques fríos. Nunca
-  `process.exit` en Vercel.
+- **Mongo serverless:** `dbConnect()` cachea la promesa mientras conecta y, si Mongoose quedó
+  en "disconnected" con un cliente vivo, **cierra ese cliente antes de reconectar**: si no,
+  `mongoose.connect` crea otro MongoClient sin soltar el anterior y cada reconexión suma ~10
+  conexiones por instancia (el 2026-09-10 el M0, tope 500, se llenó y la tienda dio 503 media
+  hora). `api/index.ts` reintenta dos veces (5 s cada una) para caber en los 15 s del front.
+  Nunca `process.exit` en Vercel.
 
 ## Convenciones
 
