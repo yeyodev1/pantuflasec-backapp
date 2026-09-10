@@ -16,6 +16,15 @@ import { seedAdmin } from "../src/services/auth.service";
  */
 let arranque: Promise<Express> | null = null;
 
+// La cuenta admin se comprueba una vez por instancia, no en cada reconexión.
+let adminSeeded = false;
+
+async function seedAdminOnce(): Promise<void> {
+  if (adminSeeded) return;
+  adminSeeded = true;
+  await seedAdmin();
+}
+
 /**
  * Conecta con reintentos cortos. En un arranque frío Atlas o el DNS pueden
  * fallar el primer intento y sin esto la instancia respondía 503 a todo.
@@ -34,7 +43,7 @@ async function ensureApp(): Promise<Express> {
   if (!arranque) {
     arranque = (async () => {
       const ok = await connectWithRetry();
-      if (ok) await seedAdmin();
+      if (ok) await seedAdminOnce();
       return createApp().app;
     })().catch((error) => {
       // No se cachea un arranque fallido: la siguiente petición reintenta.
@@ -47,7 +56,7 @@ async function ensureApp(): Promise<Express> {
 
   if (!isConnected()) {
     const reconectado = await connectWithRetry();
-    if (reconectado) await seedAdmin();
+    if (reconectado) await seedAdminOnce();
   }
 
   return app;
