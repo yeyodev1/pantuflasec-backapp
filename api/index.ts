@@ -19,8 +19,10 @@ let arranque: Promise<Express> | null = null;
 /**
  * Conecta con reintentos cortos. En un arranque frío Atlas o el DNS pueden
  * fallar el primer intento y sin esto la instancia respondía 503 a todo.
+ * Dos intentos de 5 s: más que eso y el front (15 s) corta antes de recibir
+ * el 503 con mensaje, y el usuario ve "tardó demasiado" sin saber por qué.
  */
-async function connectWithRetry(attempts = 3, waitMs = 600): Promise<boolean> {
+async function connectWithRetry(attempts = 2, waitMs = 500): Promise<boolean> {
   for (let i = 1; i <= attempts; i++) {
     if (await dbConnect()) return true;
     if (i < attempts) await new Promise((r) => setTimeout(r, waitMs * i));
