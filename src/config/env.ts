@@ -28,6 +28,8 @@ export const env = {
   PORT: Number(optional("PORT", "8100")),
   NODE_ENV: optional("NODE_ENV", "development"),
   IS_VERCEL: Boolean(process.env.VERCEL),
+  // Commit desplegado (Vercel lo expone solo); el front lo muestra en el pie del panel.
+  APP_VERSION: (process.env.VERCEL_GIT_COMMIT_SHA || "local").slice(0, 7),
   DB_URI: required("DB_URI"),
   JWT_SECRET: required("JWT_SECRET"),
   CORS_ORIGINS: list("CORS_ORIGINS"),
