@@ -1,11 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import * as productService from "../services/product.service";
+import { getDiscounts, applyDiscount, withDiscounts } from "../services/discount.service";
 
 /** GET /api/products — query: q, category, collection, featured, newArrival, showOnHome, sort, page, limit */
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const result = await productService.list(req.query as productService.ListQuery);
-    res.status(200).json(result);
+    res.status(200).json({ ...result, items: await withDiscounts(result.items) });
   } catch (error) {
     next(error);
   }
@@ -23,8 +24,11 @@ export async function facets(_req: Request, res: Response, next: NextFunction) {
 /** GET /api/products/:slug */
 export async function getBySlug(req: Request, res: Response, next: NextFunction) {
   try {
-    const product = await productService.getBySlug(String(req.params.slug));
-    res.status(200).json(product);
+    const [product, discounts] = await Promise.all([
+      productService.getBySlug(String(req.params.slug)),
+      getDiscounts(),
+    ]);
+    res.status(200).json(applyDiscount(product, discounts));
   } catch (error) {
     next(error);
   }
@@ -33,7 +37,11 @@ export async function getBySlug(req: Request, res: Response, next: NextFunction)
 /** GET /api/products/:slug/related — { complement, similar } */
 export async function related(req: Request, res: Response, next: NextFunction) {
   try {
-    res.status(200).json(await productService.related(String(req.params.slug)));
+    const { complement, similar } = await productService.related(String(req.params.slug));
+    res.status(200).json({
+      complement: await withDiscounts(complement),
+      similar: await withDiscounts(similar),
+    });
   } catch (error) {
     next(error);
   }
