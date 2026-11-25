@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import * as settingService from "../services/setting.service";
 import * as shippingService from "../services/shipping.service";
 import * as brandfetch from "../services/brandfetch.service";
+import * as discountService from "../services/discount.service";
 
 /** GET /api/settings/hero — portada del home (pública). */
 export async function hero(_req: Request, res: Response, next: NextFunction) {
@@ -75,6 +76,24 @@ export async function importBankLogo(req: Request, res: Response, next: NextFunc
 export async function setPayments(req: Request, res: Response, next: NextFunction) {
   try {
     res.status(200).json(await settingService.setPayments(req.body ?? {}));
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** GET /api/settings/discounts — porcentaje por categoría (admin). */
+export async function discounts(_req: Request, res: Response, next: NextFunction) {
+  try {
+    res.status(200).json(await discountService.getDiscounts());
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** PUT /api/settings/discounts — body: { tazas: 20, pantuflas: 10, ... } (admin). */
+export async function setDiscounts(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.status(200).json(await discountService.setDiscounts(req.body ?? {}));
   } catch (error) {
     next(error);
   }
