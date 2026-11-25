@@ -3,6 +3,7 @@ import { MAX_DELIVERY_KM, ShippingMethod } from "../config/shop";
 import { CustomError } from "../errors/customError.error";
 import { IOrderItem } from "../models/order.model";
 import { Product } from "../models/product.model";
+import { discounted, getDiscounts } from "./discount.service";
 import * as productService from "./product.service";
 import { findShipping } from "./shipping.service";
 import { quote } from "./maps.service";
@@ -132,7 +133,10 @@ export async function validateShipping(s: NonNullable<CheckoutInput["shipping"]>
 export async function buildItems(raw: NonNullable<CheckoutInput["items"]>): Promise<IOrderItem[]> {
   if (!raw.length) throw new CustomError("Tu carrito está vacío", 400);
   const ids = [...new Set(raw.map((i) => String(i.productId ?? "")))];
-  const products = await Product.find({ _id: { $in: ids }, isActive: true }).lean();
+  const [products, discounts] = await Promise.all([
+    Product.find({ _id: { $in: ids }, isActive: true }).lean(),
+    getDiscounts(),
+  ]);
   const byId = new Map(products.map((p) => [String(p._id), p]));
 
   return raw.map((line) => {
@@ -154,7 +158,7 @@ export async function buildItems(raw: NonNullable<CheckoutInput["items"]>): Prom
         409,
       );
     }
-    const unitPrice = variant?.price ?? product.price;
+    const unitPrice = discounted(variant?.price ?? product.price, discounts[product.category]);
     return {
       productId: String(product._id),
       variantId: variant ? String(variant._id) : null,
