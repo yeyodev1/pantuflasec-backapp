@@ -101,6 +101,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   `GET /settings/hero`) y `payments` (cuentas bancarias e instrucciones de transferencia y
   efectivo; `GET/PUT /settings/payments` admin). `GET /orders/config` incluye `payments` y
   `taxIncluded` para el checkout.
+- **discounts** (`discount.service.ts`) — descuento % por categoría (Black Friday), `Setting` clave
+  `discounts` (`{ tazas: 20, pantuflas: 10 }`), `GET/PUT /settings/discounts` admin. **Se aplica al
+  leer, nunca se escribe en el producto:** los endpoints públicos de productos (list, slug, related)
+  devuelven `price` y variantes ya rebajados, `compareAtPrice` = precio original, `discountPercent`
+  y `variants[].listPrice`; `buildItems` cobra con el mismo descuento. Los endpoints admin muestran
+  el precio guardado. Apagar = poner 0.
 - **users** — admin: `GET/POST /users`, `PUT /users/:id` (nombre, teléfono, rol, activo,
   contraseña), `DELETE /users/:id`. Un admin no puede quitarse el rol ni desactivarse a sí mismo.
   `pnpm user:create <correo> <clave> [admin|customer] [nombre]` crea o actualiza desde la terminal.
