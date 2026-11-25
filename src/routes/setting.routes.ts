@@ -15,5 +15,7 @@ router.get("/bank-logo/search", settingController.searchBankLogo);
 router.post("/bank-logo/import", settingController.importBankLogo);
 router.get("/shipping", settingController.shipping);
 router.put("/shipping", settingController.setShipping);
+router.get("/discounts", settingController.discounts);
+router.put("/discounts", settingController.setDiscounts);
 
 export default router;
