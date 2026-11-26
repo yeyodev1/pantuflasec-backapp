@@ -3,7 +3,7 @@ import { MAX_DELIVERY_KM, ShippingMethod } from "../config/shop";
 import { CustomError } from "../errors/customError.error";
 import { IOrderItem } from "../models/order.model";
 import { Product } from "../models/product.model";
-import { discounted, getDiscounts } from "./discount.service";
+import { discounted, getDiscounts, percentFor } from "./discount.service";
 import * as productService from "./product.service";
 import { findShipping } from "./shipping.service";
 import { quote } from "./maps.service";
@@ -158,7 +158,8 @@ export async function buildItems(raw: NonNullable<CheckoutInput["items"]>): Prom
         409,
       );
     }
-    const unitPrice = discounted(variant?.price ?? product.price, discounts[product.category]);
+    const basePrice = variant?.price ?? product.price;
+    const unitPrice = discounted(basePrice, percentFor(discounts[product.category], basePrice));
     return {
       productId: String(product._id),
       variantId: variant ? String(variant._id) : null,
