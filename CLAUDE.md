@@ -102,7 +102,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   efectivo; `GET/PUT /settings/payments` admin). `GET /orders/config` incluye `payments` y
   `taxIncluded` para el checkout.
 - **discounts** (`discount.service.ts`) — descuento % por categoría (Black Friday), `Setting` clave
-  `discounts` (`{ tazas: 20, pantuflas: 10 }`), `GET/PUT /settings/discounts` admin. **Se aplica al
+  `discounts`, `GET/PUT /settings/discounts` admin. Cada categoría es una lista de tramos por precio
+  (`{ peluches: [{ from: 50, percent: 10 }, { from: 20, percent: 15 }, { from: 0, percent: 25 }] }`,
+  ordenada de mayor a menor `from`); a cada precio le toca el tramo más alto que alcanza
+  (`percentFor`), así que una talla con precio propio puede caer en otro tramo. Un descuento plano es
+  un tramo desde 0 y un número suelto (formato viejo) se lee igual. **Se aplica al
   leer, nunca se escribe en el producto:** los endpoints públicos de productos (list, slug, related)
   devuelven `price` y variantes ya rebajados, `compareAtPrice` = precio original, `discountPercent`
   y `variants[].listPrice`; `buildItems` cobra con el mismo descuento. Los endpoints admin muestran
