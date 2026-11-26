@@ -81,7 +81,7 @@ export async function setPayments(req: Request, res: Response, next: NextFunctio
   }
 }
 
-/** GET /api/settings/discounts — porcentaje por categoría (admin). */
+/** GET /api/settings/discounts — tramos de descuento por categoría (admin). */
 export async function discounts(_req: Request, res: Response, next: NextFunction) {
   try {
     res.status(200).json(await discountService.getDiscounts());
@@ -90,7 +90,7 @@ export async function discounts(_req: Request, res: Response, next: NextFunction
   }
 }
 
-/** PUT /api/settings/discounts — body: { tazas: 20, pantuflas: 10, ... } (admin). */
+/** PUT /api/settings/discounts — body: { peluches: [{ from: 50, percent: 10 }, { from: 0, percent: 25 }], tazas: 20 } (admin). */
 export async function setDiscounts(req: Request, res: Response, next: NextFunction) {
   try {
     res.status(200).json(await discountService.setDiscounts(req.body ?? {}));
